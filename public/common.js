@@ -6,6 +6,9 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
+// Detect stale assets and self-heal (see /version-check.js).
+import('/version-check.js').then((m) => m.startVersionWatch()).catch(() => {});
+
 export async function api(path, { method = 'GET', body, formData } = {}) {
   const opts = { method, headers: { 'x-requested-with': 'fetch' } };
   if (body !== undefined) {

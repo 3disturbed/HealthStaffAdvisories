@@ -2,7 +2,26 @@
 // network (case data must never be served stale), with a friendly offline
 // page for navigations. Static freshness is handled by Cache-Control headers.
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+// Take control immediately and drop every cache: this worker serves nothing
+// from cache, so any cache present belongs to a previous version and would
+// only risk serving stale app code.
+self.addEventListener('activate', (event) =>
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+      await self.clients.claim();
+    })()
+  )
+);
+
+// Pages can ask for an immediate purge (used by the update banner).
+self.addEventListener('message', (event) => {
+  if (event.data === 'purge-caches') {
+    event.waitUntil(caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))));
+  }
+});
 
 const OFFLINE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline — Kelly Online</title>

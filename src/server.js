@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { config } from './config.js';
+import { BUILD_VERSION } from './version.js';
 import { seedAdmin } from './db/connection.js';
 import { attachUser, csrfGuard } from './auth/middleware.js';
 import { authRouter } from './api/auth.js';
@@ -60,13 +61,24 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/account', accountRouter);
 app.use('/api', documentsRouter);
 
-// no-cache = browsers must revalidate before reuse (ETag keeps it a cheap
-// 304). Without this, heuristic caching can keep serving old JS/CSS after a
-// deploy — symptoms like a chat panel stuck on "Loading…".
+// Current build fingerprint. Clients poll this and self-heal when the
+// version they loaded with no longer matches (see public/version-check.js).
+app.get('/api/version', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ version: BUILD_VERSION });
+});
+
+// Entry documents are never cached, so a browser can always discover a new
+// build; other assets use no-cache, meaning revalidate-before-reuse (ETag
+// keeps that a cheap 304). Without this, heuristic caching can keep serving
+// old JS/CSS after a deploy — symptoms like a panel stuck on "Loading…".
 app.use(
   express.static(path.join(config.root, 'public'), {
     extensions: ['html'],
-    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+    setHeaders: (res, filePath) => {
+      res.setHeader('X-App-Version', BUILD_VERSION);
+      res.setHeader('Cache-Control', filePath.endsWith('.html') ? 'no-store' : 'no-cache');
+    },
   })
 );
 
