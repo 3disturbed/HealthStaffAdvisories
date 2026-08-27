@@ -60,7 +60,15 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/account', accountRouter);
 app.use('/api', documentsRouter);
 
-app.use(express.static(path.join(config.root, 'public'), { extensions: ['html'] }));
+// no-cache = browsers must revalidate before reuse (ETag keeps it a cheap
+// 304). Without this, heuristic caching can keep serving old JS/CSS after a
+// deploy — symptoms like a chat panel stuck on "Loading…".
+app.use(
+  express.static(path.join(config.root, 'public'), {
+    extensions: ['html'],
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+  })
+);
 
 // JSON 404 for unknown API routes; static handler covers the rest.
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));

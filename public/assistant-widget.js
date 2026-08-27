@@ -94,7 +94,9 @@ export function createChatUI(container) {
     const banners = [];
     if (!root.configured) banners.push('<div class="notice warn small">No OpenAI API key is configured. An administrator can add one in Admin → AI settings.</div>');
     else if (!root.enabled) banners.push('<div class="notice warn small">The AI kill switch is on — chat is paused. Pending actions can still be approved or declined.</div>');
-    if (note) banners.push(`<div class="notice error small">${esc(note)}</div>`);
+    if (note) {
+      banners.push(`<div class="notice error small">${esc(note)}<br><button class="btn small quiet" type="button" data-retry>Try again</button></div>`);
+    }
 
     body.innerHTML = `
       ${banners.join('')}
@@ -109,6 +111,9 @@ export function createChatUI(container) {
     const disabled = !root.enabled;
     text.disabled = disabled;
     send.disabled = disabled;
+
+    body.querySelector('[data-retry]')?.addEventListener('click', () =>
+      loadRoot().then(() => renderThread()).catch((err) => renderState(null, err.message)));
 
     body.querySelectorAll('[data-approve]').forEach((b) =>
       b.addEventListener('click', async () => {
@@ -143,6 +148,10 @@ export function createChatUI(container) {
 
   async function loadRoot(pickFirst = true) {
     root = await api('/admin/assistant');
+    if (!Array.isArray(root.threads)) {
+      // Response shape mismatch — almost certainly a stale cached script.
+      throw new Error('The app has been updated — please refresh the page.');
+    }
     if (pickFirst && !activeId && root.threads.length > 0) activeId = root.threads[0].id;
     if (activeId && !root.threads.some((t) => t.id === activeId)) activeId = root.threads[0]?.id || null;
     renderTabs();

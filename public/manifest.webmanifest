@@ -1,0 +1,15 @@
+{
+  "name": "Kelly Online",
+  "short_name": "Kelly",
+  "description": "Workplace support for NHS staff — human-led, AI-assisted.",
+  "start_url": "/portal.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#005eb8",
+  "theme_color": "#005eb8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

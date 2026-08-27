@@ -1,4 +1,4 @@
-import { api, esc, fmtDate, fmtDay, requireUser } from '/common.js';
+import { api, esc, fmtDate, fmtDay, requireUser, installInfo, promptInstall } from '/common.js';
 
 const view = document.getElementById('view');
 let user;
@@ -19,12 +19,41 @@ function errorBox(err) {
   view.innerHTML = `<div class="notice error">${esc(err.message)}</div><p><a href="#/">Back to my cases</a></p>`;
 }
 
+// "Install app" card: real install prompt where the browser offers one,
+// Add-to-Home-Screen instructions on iOS, hidden once installed/dismissed.
+function installCard() {
+  const { standalone, ios, promptReady } = installInfo();
+  if (standalone || localStorage.getItem('kelly-install-dismissed')) return '';
+  if (!promptReady && !ios) return '';
+  return `
+    <div class="card" id="install-card">
+      <h3 class="mt0"><img src="/icons/icon-192.png" alt="" width="28" height="28" style="vertical-align:-6px"> Get the Kelly Online app</h3>
+      ${promptReady
+        ? `<p class="small muted">Install Kelly Online on this device — it opens full screen from your home screen, no browser bars.</p>
+           <p><button class="btn" id="install-app">Install app</button>
+           <button class="btn quiet small" id="install-dismiss">Not now</button></p>`
+        : `<p class="small muted">On iPhone/iPad: tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong> to install Kelly Online.</p>
+           <p><button class="btn quiet small" id="install-dismiss">Got it</button></p>`}
+    </div>`;
+}
+
+function wireInstallCard() {
+  document.getElementById('install-app')?.addEventListener('click', async () => {
+    if (await promptInstall()) document.getElementById('install-card')?.remove();
+  });
+  document.getElementById('install-dismiss')?.addEventListener('click', () => {
+    localStorage.setItem('kelly-install-dismissed', '1');
+    document.getElementById('install-card')?.remove();
+  });
+}
+
 async function renderDashboard() {
   const [{ cases }, notif] = await Promise.all([api('/cases'), api('/notifications')]);
   const unread = notif.notifications.filter((n) => !n.read_at);
   view.innerHTML = `
     <h1>My cases</h1>
     ${unread.length ? `<div class="notice info" id="notif-box">${unread.map((n) => `<div><strong>${esc(n.title)}</strong> <span class="muted small">${esc(fmtDate(n.created_at))}</span></div>`).join('')}</div>` : ''}
+    ${installCard()}
     <p><a class="btn" href="#/new">Start a case</a></p>
     <div class="case-list">
       ${cases.map((c) => `
@@ -37,6 +66,7 @@ async function renderDashboard() {
         </a>`).join('') || '<div class="card"><p>No cases yet. When something happens at work, start a case and we’ll help you make sense of it.</p></div>'}
     </div>`;
   if (unread.length) api('/notifications/read', { method: 'POST' }).catch(() => {});
+  wireInstallCard();
 }
 
 function renderNewCase() {
@@ -206,5 +236,10 @@ async function route() {
 user = await requireUser('portal', 'cases.own');
 if (user) {
   window.addEventListener('hashchange', route);
+  // The browser may declare installability after first paint — refresh the
+  // dashboard so the install card appears.
+  window.addEventListener('kelly-installable', () => {
+    if ((window.location.hash || '#/') === '#/') route();
+  });
   route();
 }
