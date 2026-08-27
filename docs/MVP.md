@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · **MVP** · [PRD](PRD.md) · [SDD](SDD.md) · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # MVP — Kelly Online
 
 ## Objective
@@ -94,6 +96,8 @@ Requirements:
 
 #### 5. AI case intake
 
+AI behaviour must stay within the boundaries defined in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
+
 AI should:
 
 - Summarise the member's issue.
@@ -135,7 +139,7 @@ The UI should visually distinguish:
 
 #### 7. Urgency engine
 
-The system must support deterministic rules in addition to LLM classification.
+The system must support deterministic rules in addition to LLM classification (see the deadline and escalation policy in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md)).
 
 Initial high-priority triggers:
 
@@ -160,6 +164,8 @@ For urgent cases:
 - do not rely solely on model confidence.
 
 #### 8. Kelly dashboard
+
+How Kelly actually uses these views day to day is described in [KELLY-OPS.md](KELLY-OPS.md).
 
 Views:
 
@@ -243,6 +249,8 @@ Do not put sensitive case details in email subject lines or notification preview
 - Knowledge-source review workflow.
 
 ## Pilot exit criteria
+
+The full pre-launch verification lives in [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).
 
 Pilot becomes public beta when:
 

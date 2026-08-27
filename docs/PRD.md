@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · **PRD** · [SDD](SDD.md) · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # Product Requirements Document
 
 ## Product
@@ -95,6 +97,8 @@ All relevant communication, documents, chronology and actions should live in the
 
 ### Journey C — Urgent case
 
+Urgency triggers and escalation requirements are specified in [MVP.md](MVP.md) (urgency engine) and [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
+
 1. Member states event.
 2. Deterministic or AI detector identifies urgent trigger.
 3. UI displays explicit urgency notice.
@@ -129,6 +133,8 @@ Status language should be human:
 - Closed.
 
 ## Kelly dashboard
+
+Kelly's day-to-day use of this dashboard is described in [KELLY-OPS.md](KELLY-OPS.md).
 
 Primary sort:
 
@@ -195,6 +201,8 @@ Separated into:
 - potentially external/urgent.
 
 ## Knowledge-source management
+
+Source freshness and citation rules are specified in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
 
 Every source record should contain:
 

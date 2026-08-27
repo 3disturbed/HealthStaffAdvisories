@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · [SDD](SDD.md) · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · **Launch Checklist** · [Agent Rules](AGENTS.md)
+
 # Kelly Online — Launch Checklist
 
 ## Product
@@ -17,6 +19,8 @@
 - [ ] Case can be closed/reopened.
 
 ## Safety
+
+Requirements behind these items: [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
 
 - [ ] High-risk escalation rules implemented.
 - [ ] Potential deadline cases visibly escalate.
@@ -92,7 +96,7 @@
 
 ## Pilot test
 
-Run at least 20 synthetic or appropriately anonymised scenarios.
+Run at least 20 synthetic or appropriately anonymised scenarios (drawn from the safety evaluation set in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md)).
 
 - [ ] Simple policy question.
 - [ ] HR letter.
@@ -116,6 +120,8 @@ Run at least 20 synthetic or appropriately anonymised scenarios.
 - [ ] No relevant source found.
 
 ## Go / no-go
+
+Pilot exit criteria are defined in [MVP.md](MVP.md).
 
 Public pilot can begin only if:
 

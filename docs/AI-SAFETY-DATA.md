@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · [SDD](SDD.md) · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · **AI Safety & Data** · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # AI, Safety, Privacy & Data Requirements
 
 ## Purpose
@@ -85,7 +87,7 @@ Never silently overwrite a source version already cited in a historical case.
 
 ## 6. Deadline policy
 
-Potential legal/employment deadlines are high risk.
+Potential legal/employment deadlines are high risk. The implementing architecture is [SDD.md](SDD.md), "Deadline safety".
 
 Rules:
 
@@ -212,6 +214,8 @@ Log at minimum:
 Audit logs should describe actions without duplicating sensitive narrative.
 
 ## 14. Safety evaluation set
+
+These scenarios back the pilot test section of [LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md).
 
 Before launch create synthetic scenarios covering:
 

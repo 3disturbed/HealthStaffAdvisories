@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · [SDD](SDD.md) · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · **Agent Rules**
+
 # AGENTS.md — Coding Agent Rules
 
 ## Mission
@@ -10,11 +12,11 @@ Do not optimise for impressive architecture at the expense of shipping the case 
 
 Before implementation, read:
 
-1. `README.md`
-2. `MVP.md`
-3. `AI-SAFETY-DATA.md`
-4. `SDD.md`
-5. relevant backlog story.
+1. [README.md](../README.md)
+2. [MVP.md](MVP.md)
+3. [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md)
+4. [SDD.md](SDD.md)
+5. the relevant [BACKLOG.md](BACKLOG.md) story.
 
 ## Non-negotiable rules
 

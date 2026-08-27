@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · [SDD](SDD.md) · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · **Kelly Ops** · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # Kelly Operations Manual — MVP
 
 ## Goal
@@ -33,6 +35,8 @@ Kelly should read in this order:
 If Kelly routinely needs to start at step 7, the AI brief is failing and should be improved.
 
 ## Case statuses
+
+Member-facing status language is defined in [PRD.md](PRD.md) (member dashboard).
 
 ### Gathering information
 
@@ -196,4 +200,4 @@ Once per week review:
 - sources Kelly had to find manually;
 - questions members repeatedly misunderstood.
 
-Those observations become the next sprint's product evidence.
+Those observations become the next sprint's product evidence (see [AGILE.md](AGILE.md), sprint review questions).

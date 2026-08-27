@@ -1,3 +1,5 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · [SDD](SDD.md) · [Backlog](BACKLOG.md) · **Agile** · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # Agile Delivery Workflow
 
 ## Delivery philosophy
@@ -69,6 +71,8 @@ Own:
 ### Privacy/Safety reviewer
 
 May initially be a named responsibility rather than a full-time person.
+
+Reviews against the requirements in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
 
 Must approve changes involving:
 
@@ -166,6 +170,8 @@ A story is Done only when:
 - Do not merge failing tests because "it works locally."
 
 ## Suggested launch sprints
+
+Sprint deliverables map to the epics and stories in [BACKLOG.md](BACKLOG.md).
 
 ### Sprint 0 — Foundation
 

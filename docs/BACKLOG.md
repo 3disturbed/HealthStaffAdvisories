@@ -1,4 +1,8 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · [SDD](SDD.md) · **Backlog** · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # Prioritised Product Backlog
+
+Epics feed the suggested launch sprints in [AGILE.md](AGILE.md); pilot scope is defined in [MVP.md](MVP.md).
 
 Priority:
 
@@ -158,6 +162,8 @@ Sources become due for review.
 Detect likely external revisions for human review.
 
 ## EPIC G — Safety
+
+Requirements for this epic are specified in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
 
 ### G1 — Urgency rules engine — P0
 

@@ -1,6 +1,10 @@
+> Kelly Online docs — [README](../README.md) · [MVP](MVP.md) · [PRD](PRD.md) · **SDD** · [Backlog](BACKLOG.md) · [Agile](AGILE.md) · [AI Safety & Data](AI-SAFETY-DATA.md) · [Kelly Ops](KELLY-OPS.md) · [Launch Checklist](LAUNCH-CHECKLIST.md) · [Agent Rules](AGENTS.md)
+
 # Software Design Document
 
 ## 1. Architecture goals
+
+The architecture serves the release scope in [MVP.md](MVP.md) and the safety requirements in [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md).
 
 The MVP architecture optimises for:
 
@@ -360,7 +364,7 @@ Model output is data, not authority.
 
 ## 11. Deadline safety
 
-Never allow the model to be the only deadline calculator.
+Never allow the model to be the only deadline calculator (policy: [AI-SAFETY-DATA.md](AI-SAFETY-DATA.md), "Deadline policy").
 
 Architecture:
 
