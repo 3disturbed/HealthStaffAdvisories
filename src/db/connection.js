@@ -16,6 +16,25 @@ const schema = fs.readFileSync(
 );
 db.exec(schema);
 
+// Versioned migrations for columns added to existing tables after first
+// release. New TABLES go in schema.sql (IF NOT EXISTS); new COLUMNS on
+// existing tables go ONLY here, gated by PRAGMA user_version.
+const MIGRATIONS = [
+  // v1 — account preferences + evidence message metadata
+  `ALTER TABLE users ADD COLUMN email_notifications INTEGER NOT NULL DEFAULT 1;
+   ALTER TABLE case_messages ADD COLUMN meta TEXT;`,
+];
+{
+  let version = db.prepare('PRAGMA user_version').get().user_version;
+  while (version < MIGRATIONS.length) {
+    db.exec('BEGIN');
+    db.exec(MIGRATIONS[version]);
+    version += 1;
+    db.exec(`PRAGMA user_version = ${version}`);
+    db.exec('COMMIT');
+  }
+}
+
 export function nowIso() {
   return new Date().toISOString().replace('T', ' ').slice(0, 19);
 }

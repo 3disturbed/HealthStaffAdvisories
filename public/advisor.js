@@ -140,8 +140,9 @@ async function renderCase(id) {
           <div id="thread">
             ${messages.map((m) => `
               <div class="msg ${m.visibility === 'advisor_private' ? 'private' : m.approved_by ? 'advisor' : 'member'}">
-                <div class="who">${m.visibility === 'advisor_private' ? '🔒 Private note · ' : ''}${esc(m.author_name || 'System')} · ${esc(fmtDate(m.created_at))}${m.kind === 'action_plan' ? ' · <strong>Action plan</strong>' : ''}${m.kind === 'question' ? ' · <strong>Question to member</strong>' : ''}</div>
+                <div class="who">${m.visibility === 'advisor_private' ? '🔒 Private note · ' : ''}${esc(m.author_name || 'System')} · ${esc(fmtDate(m.created_at))}${m.kind === 'action_plan' ? ' · <strong>Action plan</strong>' : ''}${m.kind === 'question' ? ' · <strong>Question to member</strong>' : ''}${m.kind === 'evidence' ? ' · <strong>📎 Evidence</strong>' : ''}</div>
                 <div class="body">${esc(m.content)}</div>
+                ${m.attachments?.length ? `<ul class="small">${m.attachments.map((a) => `<li><a href="/api/documents/${a.id}/download">${esc(a.filename)}</a></li>`).join('')}</ul>` : ''}
               </div>`).join('')}
           </div>
           ${can(user, 'cases.respond') ? `

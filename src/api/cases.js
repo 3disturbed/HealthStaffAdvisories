@@ -3,7 +3,7 @@ import { db } from '../db/connection.js';
 import { requirePermission } from '../auth/middleware.js';
 import { assessUrgency } from '../safety/urgency.js';
 import { audit } from '../audit/log.js';
-import { notifyUser, sendEmail } from '../notify/mailer.js';
+import { notifyUser, sendNotificationEmail } from '../notify/mailer.js';
 import { userHas } from '../rbac/permissions.js';
 import { runIntake, aiEnabled } from '../ai/intake.js';
 
@@ -39,6 +39,25 @@ export function loadCaseAuthorised(req, caseId) {
   const isAdvisor = userHas(req.user, 'cases.review');
   if (!isOwner && !isAdvisor) return { error: 404 }; // do not reveal existence
   return { c, isOwner, isAdvisor };
+}
+
+// Resolve case_messages.meta ({"documentIds":[...]}) into attachment info.
+// Clients never see raw meta; ids are matched against the case's documents.
+export function attachMessageDocuments(messages, caseId) {
+  const docs = db.prepare('SELECT id, original_filename FROM documents WHERE case_id = ?').all(caseId);
+  const byId = new Map(docs.map((d) => [d.id, d]));
+  return messages.map(({ meta, ...m }) => {
+    let attachments = [];
+    if (meta) {
+      try {
+        attachments = (JSON.parse(meta).documentIds || [])
+          .map((id) => byId.get(id))
+          .filter(Boolean)
+          .map((d) => ({ id: d.id, filename: d.original_filename }));
+      } catch { /* malformed meta renders as no attachments */ }
+    }
+    return { ...m, attachments };
+  });
 }
 
 function advisorUserIds() {
@@ -89,8 +108,7 @@ casesRouter.post('/', requirePermission('cases.own'), (req, res) => {
   if (triggers.length > 0) {
     for (const advisorId of advisorUserIds()) {
       notifyUser(advisorId, 'urgent_case', `Urgent case #${caseId}`, 'A new case has triggered urgency rules.', caseId);
-      const advisor = db.prepare('SELECT email FROM users WHERE id = ?').get(advisorId);
-      sendEmail(advisor.email, 'Kelly Online: a case needs urgent attention', `An urgent case is waiting in your queue. Sign in to view it.`);
+      sendNotificationEmail(advisorId, 'Kelly Online: a case needs urgent attention', 'An urgent case is waiting in your queue. Sign in to view it.');
     }
   }
 
@@ -126,13 +144,16 @@ casesRouter.get('/:id', requirePermission('cases.own'), (req, res) => {
   if (error) return res.status(error).json({ error: 'Case not found.' });
   if (!isOwner) return res.status(404).json({ error: 'Case not found.' }); // member endpoint: owners only
 
-  const messages = db
-    .prepare(
-      `SELECT m.id, m.author_user_id, m.kind, m.content, m.created_at, u.display_name AS author_name
-       FROM case_messages m LEFT JOIN users u ON u.id = m.author_user_id
-       WHERE m.case_id = ? AND m.visibility = 'member' ORDER BY m.created_at, m.id`
-    )
-    .all(c.id);
+  const messages = attachMessageDocuments(
+    db
+      .prepare(
+        `SELECT m.id, m.author_user_id, m.kind, m.content, m.meta, m.created_at, u.display_name AS author_name
+         FROM case_messages m LEFT JOIN users u ON u.id = m.author_user_id
+         WHERE m.case_id = ? AND m.visibility = 'member' ORDER BY m.created_at, m.id`
+      )
+      .all(c.id),
+    c.id
+  );
   const timeline = db
     .prepare(`SELECT id, event_date, description, source, confidence, confirmed FROM case_timeline WHERE case_id = ? ORDER BY event_date IS NULL, event_date`)
     .all(c.id);
@@ -186,6 +207,37 @@ casesRouter.post('/:id/messages', requirePermission('cases.own'), (req, res) => 
   db.prepare(`UPDATE cases SET updated_at = datetime('now'), status = ? WHERE id = ?`).run(newStatus, c.id);
   audit(req.user.id, 'case.member_message', 'case', c.id);
   res.json({ ok: true });
+});
+
+// Evidence flow: statement + previously uploaded documents, as one clearly
+// labelled entry in the case conversation.
+casesRouter.post('/:id/evidence', requirePermission('cases.own'), (req, res) => {
+  const { c, error, isOwner } = loadCaseAuthorised(req, req.params.id);
+  if (error || !isOwner) return res.status(404).json({ error: 'Case not found.' });
+  if (c.status === 'closed') return res.status(400).json({ error: 'This case is closed. Ask Kelly to reopen it.' });
+
+  const statement = String(req.body.statement || '').trim();
+  if (statement.length < 10 || statement.length > 4000) {
+    return res.status(400).json({ error: 'Please describe what this evidence shows (a sentence or two).' });
+  }
+  const ids = Array.isArray(req.body.documentIds) ? req.body.documentIds.map(Number) : [];
+  if (ids.length < 1 || ids.length > 10 || ids.some((id) => !Number.isInteger(id))) {
+    return res.status(400).json({ error: 'Attach between 1 and 10 uploaded documents.' });
+  }
+  for (const id of ids) {
+    const owned = db
+      .prepare('SELECT id FROM documents WHERE id = ? AND case_id = ? AND owner_user_id = ?')
+      .get(id, c.id, req.user.id);
+    if (!owned) return res.status(400).json({ error: 'One of the attached documents does not belong to this case.' });
+  }
+
+  db.prepare(
+    `INSERT INTO case_messages (case_id, author_user_id, visibility, kind, content, meta) VALUES (?, ?, 'member', 'evidence', ?, ?)`
+  ).run(c.id, req.user.id, statement, JSON.stringify({ documentIds: ids }));
+  const newStatus = c.status === 'need_member_info' ? 'waiting_for_kelly' : c.status;
+  db.prepare(`UPDATE cases SET updated_at = datetime('now'), status = ? WHERE id = ?`).run(newStatus, c.id);
+  audit(req.user.id, 'case.evidence_submitted', 'case', c.id, { documentIds: ids });
+  res.json({ ok: true, caseId: c.id });
 });
 
 casesRouter.post('/:id/request-review', requirePermission('cases.own'), (req, res) => {

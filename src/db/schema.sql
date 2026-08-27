@@ -226,3 +226,31 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Admin assistant chatbot: one rolling conversation per user.
+CREATE TABLE IF NOT EXISTS assistant_messages (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, -- user | assistant | tool
+  content TEXT NOT NULL DEFAULT '',
+  tool_calls TEXT,    -- JSON, assistant rows only
+  tool_call_id TEXT,  -- tool rows only
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_msgs_user ON assistant_messages(user_id, id);
+
+-- Proposed write actions awaiting human approval. Args live only here —
+-- the client ever sees just the row id, so args cannot be tampered with.
+CREATE TABLE IF NOT EXISTS assistant_actions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tool_name TEXT NOT NULL,
+  args_json TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  tool_call_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | executed | declined | expired
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_actions_user ON assistant_actions(user_id, status);

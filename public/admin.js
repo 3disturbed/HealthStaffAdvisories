@@ -3,9 +3,14 @@ import { api, esc, fmtDate, requireUser, can } from '/common.js';
 const view = document.getElementById('view');
 let user;
 
+function canUseAssistant() {
+  return ['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p));
+}
+
 function tabsBar(active) {
   const tabs = [];
   if (can(user, 'users.manage')) tabs.push(['users', 'Users & permissions']);
+  if (canUseAssistant()) tabs.push(['assistant', 'Assistant']);
   if (can(user, 'system.admin')) tabs.push(['settings', 'AI settings'], ['mailbox', 'Dev mailbox']);
   if (can(user, 'knowledge.manage')) tabs.push(['knowledge', 'Knowledge sources']);
   if (can(user, 'audit.view')) tabs.push(['audit', 'Audit log']);
@@ -82,6 +87,78 @@ async function renderUsers() {
     b.addEventListener('click', () =>
       api(`/admin/users/${b.dataset.uid}/status`, { method: 'POST', body: { status: b.dataset.status } })
         .then(renderUsers).catch(oops)));
+}
+
+async function renderAssistant() {
+  const state = await api('/admin/assistant');
+  view.innerHTML = `
+    <h1>Admin</h1>${tabsBar('assistant')}
+    <div id="msg"></div>
+    ${!state.configured ? '<div class="notice warn">No OpenAI API key is configured. Add one in <strong>AI settings</strong> to use the assistant.</div>' : ''}
+    ${state.configured && !state.enabled ? '<div class="notice warn">The AI kill switch is on — chat is paused. You can still approve or decline pending actions below; re-enable AI in <strong>AI settings</strong>.</div>' : ''}
+    <div class="card">
+      <h3>Assistant <span class="tag ai">AI</span></h3>
+      <p class="small muted">Ask about accounts, the case queue or knowledge sources. Any change it suggests becomes a proposed action you approve first — nothing happens without your click.</p>
+      <div id="chat-log">
+        ${state.messages.map((m) => `
+          <div class="msg ${m.role === 'user' ? 'member' : 'system'}">
+            <div class="who">${m.role === 'user' ? 'You' : 'Assistant'} · ${esc(fmtDate(m.createdAt))}</div>
+            <div class="body">${esc(m.content)}</div>
+          </div>`).join('') || '<p class="muted">No conversation yet. Try “Who has the advisor role?” or “Show me the urgent queue.”</p>'}
+      </div>
+      ${state.pending.map((a) => `
+        <div class="notice warn" data-action-card="${a.id}">
+          <strong>Proposed action:</strong> ${esc(a.summary)}
+          <details class="small"><summary>details</summary><div class="table-scroll"><pre class="small">${esc(JSON.stringify(a.args, null, 2))}</pre></div></details>
+          <p>
+            <button class="btn small" data-approve="${a.id}">Approve</button>
+            <button class="btn small quiet" data-decline="${a.id}">Decline</button>
+            <span class="muted small">expires ${esc(fmtDate(a.expiresAt))}</span>
+          </p>
+        </div>`).join('')}
+      <form id="chat-form">
+        <label for="chat-input">Message</label>
+        <textarea id="chat-input" maxlength="4000" required ${state.enabled ? '' : 'disabled'}></textarea>
+        <p>
+          <button class="btn" type="submit" ${state.enabled ? '' : 'disabled'}>Send</button>
+          <button class="btn quiet" type="button" id="chat-reset">Clear conversation</button>
+        </p>
+      </form>
+    </div>`;
+  wireTabs();
+
+  const busy = (on) => view.querySelectorAll('#chat-form button, [data-approve], [data-decline]').forEach((b) => { b.disabled = on; });
+  document.getElementById('chat-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const content = document.getElementById('chat-input').value.trim();
+    if (!content) return;
+    busy(true);
+    try {
+      await api('/admin/assistant/message', { method: 'POST', body: { content } });
+      renderAssistant();
+    } catch (err) { busy(false); oops(err); }
+  });
+  view.querySelectorAll('[data-approve]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      busy(true);
+      try {
+        await api(`/admin/assistant/actions/${b.dataset.approve}/confirm`, { method: 'POST' });
+        renderAssistant();
+      } catch (err) { busy(false); oops(err); }
+    }));
+  view.querySelectorAll('[data-decline]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      busy(true);
+      try {
+        await api(`/admin/assistant/actions/${b.dataset.decline}/cancel`, { method: 'POST' });
+        renderAssistant();
+      } catch (err) { busy(false); oops(err); }
+    }));
+  document.getElementById('chat-reset').addEventListener('click', () =>
+    api('/admin/assistant/reset', { method: 'POST' }).then(renderAssistant).catch(oops));
+  const log = document.getElementById('chat-log');
+  log.scrollTop = log.scrollHeight;
+  window.scrollTo(0, document.body.scrollHeight);
 }
 
 async function renderSettings() {
@@ -235,10 +312,14 @@ async function renderAudit() {
 }
 
 async function route(tab) {
-  const first = can(user, 'users.manage') ? 'users' : can(user, 'system.admin') ? 'settings' : can(user, 'knowledge.manage') ? 'knowledge' : 'audit';
+  const first = can(user, 'users.manage') ? 'users'
+    : canUseAssistant() ? 'assistant'
+    : can(user, 'system.admin') ? 'settings'
+    : can(user, 'knowledge.manage') ? 'knowledge' : 'audit';
   const target = tab || first;
   try {
     if (target === 'users') await renderUsers();
+    else if (target === 'assistant') await renderAssistant();
     else if (target === 'settings') await renderSettings();
     else if (target === 'mailbox') await renderMailbox();
     else if (target === 'knowledge') await renderKnowledge();
@@ -251,7 +332,7 @@ async function route(tab) {
 
 user = await requireUser('admin');
 if (user) {
-  if (!can(user, 'users.manage') && !can(user, 'system.admin') && !can(user, 'knowledge.manage') && !can(user, 'audit.view')) {
+  if (!can(user, 'users.manage') && !can(user, 'system.admin') && !can(user, 'knowledge.manage') && !can(user, 'audit.view') && !canUseAssistant()) {
     view.innerHTML = '<div class="notice error">Your account does not have access to this area.</div>';
   } else {
     route();

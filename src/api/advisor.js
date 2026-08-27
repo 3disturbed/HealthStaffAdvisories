@@ -2,9 +2,9 @@ import { Router } from 'express';
 import { db } from '../db/connection.js';
 import { requirePermission } from '../auth/middleware.js';
 import { audit } from '../audit/log.js';
-import { notifyUser, sendEmail } from '../notify/mailer.js';
+import { notifyUser, sendNotificationEmail } from '../notify/mailer.js';
 import { runIntake, aiEnabled } from '../ai/intake.js';
-import { CASE_TYPES, MEMBER_STATUS_LABELS } from './cases.js';
+import { CASE_TYPES, MEMBER_STATUS_LABELS, attachMessageDocuments } from './cases.js';
 
 export const advisorRouter = Router();
 
@@ -72,13 +72,16 @@ advisorRouter.get('/cases/:id', requirePermission('cases.review'), (req, res) =>
     .get(Number(req.params.id));
   if (!c) return res.status(404).json({ error: 'Case not found.' });
 
-  const messages = db
-    .prepare(
-      `SELECT m.id, m.author_user_id, m.visibility, m.kind, m.content, m.created_at, m.approved_by, u.display_name AS author_name
-       FROM case_messages m LEFT JOIN users u ON u.id = m.author_user_id
-       WHERE m.case_id = ? ORDER BY m.created_at, m.id`
-    )
-    .all(c.id);
+  const messages = attachMessageDocuments(
+    db
+      .prepare(
+        `SELECT m.id, m.author_user_id, m.visibility, m.kind, m.content, m.meta, m.created_at, m.approved_by, u.display_name AS author_name
+         FROM case_messages m LEFT JOIN users u ON u.id = m.author_user_id
+         WHERE m.case_id = ? ORDER BY m.created_at, m.id`
+      )
+      .all(c.id),
+    c.id
+  );
   const timeline = db
     .prepare(`SELECT * FROM case_timeline WHERE case_id = ? ORDER BY event_date IS NULL, event_date`)
     .all(c.id);
@@ -139,10 +142,9 @@ advisorRouter.post('/cases/:id/reply', requirePermission('cases.respond'), (req,
   const newStatus = kind === 'question' ? 'need_member_info' : kind === 'action_plan' ? 'action_plan_ready' : c.status === 'waiting_for_kelly' ? 'kelly_reviewing' : c.status;
   db.prepare(`UPDATE cases SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(newStatus, c.id);
 
-  const member = db.prepare('SELECT * FROM users WHERE id = ?').get(c.member_id);
-  notifyUser(member.id, 'kelly_replied', kind === 'action_plan' ? 'Your action plan is ready' : 'Kelly has replied to your case', '', c.id);
+  notifyUser(c.member_id, 'kelly_replied', kind === 'action_plan' ? 'Your action plan is ready' : 'Kelly has replied to your case', '', c.id);
   // Neutral subject/body — no case details in email (MVP §10).
-  sendEmail(member.email, 'Kelly Online: there is an update on your case', 'Sign in to Kelly Online to read the update on your case.');
+  sendNotificationEmail(c.member_id, 'Kelly Online: there is an update on your case', 'Sign in to Kelly Online to read the update on your case.');
 
   audit(req.user.id, `case.advisor_${kind}`, 'case', c.id);
   res.json({ ok: true, status: newStatus, statusLabel: MEMBER_STATUS_LABELS[newStatus] });

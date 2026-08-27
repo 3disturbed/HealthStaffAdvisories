@@ -39,6 +39,13 @@ export function revokeAllSessions(userId) {
   db.prepare(`UPDATE sessions SET revoked_at = datetime('now') WHERE user_id = ? AND revoked_at IS NULL`).run(userId);
 }
 
+// Revoke every session except the one the user is acting from.
+export function revokeOtherSessions(userId, currentToken) {
+  db.prepare(
+    `UPDATE sessions SET revoked_at = datetime('now') WHERE user_id = ? AND revoked_at IS NULL AND token_hash != ?`
+  ).run(userId, sha256(currentToken || ''));
+}
+
 export function setSessionCookie(res, token, expires) {
   res.cookie('kelly_session', token, {
     httpOnly: true,

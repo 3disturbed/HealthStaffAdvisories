@@ -2,31 +2,18 @@ import { Router } from 'express';
 import { db, getSetting, setSetting } from '../db/connection.js';
 import { requirePermission } from '../auth/middleware.js';
 import { PERMISSIONS, ROLES, ROLE_DEFAULTS, rolesForUser, overridesForUser, permissionsForUser } from '../rbac/permissions.js';
-import { revokeAllSessions } from '../auth/sessions.js';
+import { setUserRole, setUserPermission, setUserStatus } from '../services/adminActions.js';
 import { audit } from '../audit/log.js';
 import { aiConfigured } from '../ai/intake.js';
 import { config } from '../config.js';
 
 export const adminRouter = Router();
 
-function targetUserOr404(req, res) {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
-  if (!user) {
-    res.status(404).json({ error: 'User not found.' });
-    return null;
-  }
-  return user;
-}
-
-// The main administration account is protected: nobody (including itself)
-// can demote, disable or strip it. Only the main admin may grant/remove the
-// admin role on other accounts.
-function guardTarget(req, res, target) {
-  if (target.is_main_admin) {
-    res.status(403).json({ error: 'The main administration account cannot be modified.' });
-    return false;
-  }
-  return true;
+// Guard logic (main-admin protection, only-main-admin rules) lives in
+// src/services/adminActions.js, shared with the assistant's write tools.
+function respond(res, result) {
+  if (result.error) return res.status(result.status || 400).json({ error: result.error });
+  return res.json(result);
 }
 
 adminRouter.get('/users', requirePermission('users.manage'), (req, res) => {
@@ -49,54 +36,15 @@ adminRouter.get('/users', requirePermission('users.manage'), (req, res) => {
 });
 
 adminRouter.post('/users/:id/roles', requirePermission('users.manage'), (req, res) => {
-  const target = targetUserOr404(req, res);
-  if (!target || !guardTarget(req, res, target)) return;
-  const { role, action } = req.body;
-  if (!ROLES.includes(role)) return res.status(400).json({ error: 'Unknown role.' });
-  if (!['add', 'remove'].includes(action)) return res.status(400).json({ error: 'Action must be add or remove.' });
-  if (role === 'admin' && !req.user.is_main_admin) {
-    return res.status(403).json({ error: 'Only the main administration account can grant or remove the admin role.' });
-  }
-  if (action === 'add') {
-    db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role, granted_by) VALUES (?, ?, ?)').run(target.id, role, req.user.id);
-  } else {
-    db.prepare('DELETE FROM user_roles WHERE user_id = ? AND role = ?').run(target.id, role);
-  }
-  audit(req.user.id, `role.${action}`, 'user', target.id, { role });
-  res.json({ ok: true, roles: rolesForUser(target.id) });
+  respond(res, setUserRole(req.user, req.params.id, { role: req.body.role, action: req.body.action }));
 });
 
 adminRouter.post('/users/:id/permissions', requirePermission('users.manage'), (req, res) => {
-  const target = targetUserOr404(req, res);
-  if (!target || !guardTarget(req, res, target)) return;
-  const { permission, mode } = req.body;
-  if (!(permission in PERMISSIONS)) return res.status(400).json({ error: 'Unknown permission.' });
-  if (!['grant', 'revoke', 'clear'].includes(mode)) return res.status(400).json({ error: 'Mode must be grant, revoke or clear.' });
-  if ((permission === 'users.manage' || permission === 'system.admin') && !req.user.is_main_admin) {
-    return res.status(403).json({ error: 'Only the main administration account can change administrative permissions.' });
-  }
-  if (mode === 'clear') {
-    db.prepare('DELETE FROM user_permissions WHERE user_id = ? AND permission = ?').run(target.id, permission);
-  } else {
-    db.prepare(
-      `INSERT INTO user_permissions (user_id, permission, mode, granted_by) VALUES (?, ?, ?, ?)
-       ON CONFLICT(user_id, permission) DO UPDATE SET mode = excluded.mode, granted_by = excluded.granted_by, created_at = datetime('now')`
-    ).run(target.id, permission, mode, req.user.id);
-  }
-  audit(req.user.id, `permission.${mode}`, 'user', target.id, { permission });
-  res.json({ ok: true, overrides: overridesForUser(target.id), effectivePermissions: [...permissionsForUser(target)] });
+  respond(res, setUserPermission(req.user, req.params.id, { permission: req.body.permission, mode: req.body.mode }));
 });
 
 adminRouter.post('/users/:id/status', requirePermission('users.manage'), (req, res) => {
-  const target = targetUserOr404(req, res);
-  if (!target || !guardTarget(req, res, target)) return;
-  if (target.id === req.user.id) return res.status(400).json({ error: 'You cannot disable your own account.' });
-  const status = req.body.status;
-  if (!['active', 'disabled'].includes(status)) return res.status(400).json({ error: 'Status must be active or disabled.' });
-  db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, target.id);
-  if (status === 'disabled') revokeAllSessions(target.id);
-  audit(req.user.id, `user.${status}`, 'user', target.id);
-  res.json({ ok: true, status });
+  respond(res, setUserStatus(req.user, req.params.id, req.body.status));
 });
 
 adminRouter.get('/audit', requirePermission('audit.view'), (req, res) => {

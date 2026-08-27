@@ -66,10 +66,10 @@ export async function renderNav(activeId) {
   } else {
     if (can(user, 'cases.own')) links.push(['portal', '/portal.html', 'My cases']);
     if (can(user, 'cases.review')) links.push(['advisor', '/advisor.html', 'Advisor']);
-    if (can(user, 'users.manage') || can(user, 'system.admin') || can(user, 'audit.view')) {
+    if (['users.manage', 'system.admin', 'audit.view', 'knowledge.manage', 'cases.review'].some((p) => can(user, p))) {
       links.push(['admin', '/admin.html', 'Admin']);
     }
-    links.push(['logout', '#logout', 'Sign out']);
+    links.push(['account', '/account.html', 'Account'], ['logout', '#logout', 'Sign out']);
   }
   nav.innerHTML = links
     .map(([id, href, label]) => `<a href="${href}" data-nav="${id}" class="${id === activeId ? 'active' : ''}">${label}</a>`)

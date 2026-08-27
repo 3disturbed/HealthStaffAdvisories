@@ -18,3 +18,11 @@ export function notifyUser(userId, type, title, body = '', caseId = null) {
     'INSERT INTO notifications (user_id, type, title, body, case_id) VALUES (?, ?, ?, ?, ?)'
   ).run(userId, type, title, body, caseId);
 }
+
+// Notification email that respects the user's email preference. Account
+// emails (verification, reset) must NOT go through this — always delivered.
+export function sendNotificationEmail(userId, subject, body) {
+  const user = db.prepare('SELECT email, status, email_notifications FROM users WHERE id = ?').get(userId);
+  if (!user || user.status !== 'active' || !user.email_notifications) return;
+  sendEmail(user.email, subject, body);
+}

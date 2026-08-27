@@ -24,6 +24,16 @@ export function requirePermission(permission) {
   };
 }
 
+export function requireAnyPermission(...permissions) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not signed in.' });
+    if (!permissions.some((p) => userHas(req.user, p))) {
+      return res.status(403).json({ error: 'You do not have permission to do that.' });
+    }
+    next();
+  };
+}
+
 // CSRF guard for state-changing requests: SameSite=Lax cookies plus a
 // mandatory custom header that cross-site forms cannot set.
 export function csrfGuard(req, res, next) {

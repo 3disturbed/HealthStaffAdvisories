@@ -7,9 +7,11 @@ import { authRouter } from './api/auth.js';
 import { casesRouter } from './api/cases.js';
 import { advisorRouter } from './api/advisor.js';
 import { adminRouter } from './api/admin.js';
+import { assistantRouter } from './api/assistant.js';
 import { documentsRouter } from './api/documents.js';
 import { knowledgeRouter } from './api/knowledge.js';
 import { notificationsRouter } from './api/notifications.js';
+import { accountRouter } from './api/account.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -51,9 +53,11 @@ app.use('/api', csrfGuard);
 app.use('/api/auth', authRouter);
 app.use('/api/cases', casesRouter);
 app.use('/api/advisor', advisorRouter);
+app.use('/api/admin/assistant', assistantRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/account', accountRouter);
 app.use('/api', documentsRouter);
 
 app.use(express.static(path.join(config.root, 'public'), { extensions: ['html'] }));
