@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/connection.js';
 import { requirePermission } from '../auth/middleware.js';
 import { audit } from '../audit/log.js';
-import { notifyUser, sendNotificationEmail } from '../notify/mailer.js';
+import { sendAdvisorReply } from '../services/caseActions.js';
 import { runIntake, aiEnabled } from '../ai/intake.js';
 import { CASE_TYPES, MEMBER_STATUS_LABELS, attachMessageDocuments } from './cases.js';
 
@@ -129,25 +129,9 @@ advisorRouter.get('/cases/:id', requirePermission('cases.review'), (req, res) =>
 });
 
 advisorRouter.post('/cases/:id/reply', requirePermission('cases.respond'), (req, res) => {
-  const c = db.prepare('SELECT * FROM cases WHERE id = ?').get(Number(req.params.id));
-  if (!c) return res.status(404).json({ error: 'Case not found.' });
-  const content = String(req.body.content || '').trim();
-  const kind = ['message', 'question', 'action_plan'].includes(req.body.kind) ? req.body.kind : 'message';
-  if (!content) return res.status(400).json({ error: 'Reply is empty.' });
-
-  db.prepare(
-    `INSERT INTO case_messages (case_id, author_user_id, visibility, kind, content, approved_by) VALUES (?, ?, 'member', ?, ?, ?)`
-  ).run(c.id, req.user.id, kind, content, req.user.id);
-
-  const newStatus = kind === 'question' ? 'need_member_info' : kind === 'action_plan' ? 'action_plan_ready' : c.status === 'waiting_for_kelly' ? 'kelly_reviewing' : c.status;
-  db.prepare(`UPDATE cases SET status = ?, updated_at = datetime('now') WHERE id = ?`).run(newStatus, c.id);
-
-  notifyUser(c.member_id, 'kelly_replied', kind === 'action_plan' ? 'Your action plan is ready' : 'Kelly has replied to your case', '', c.id);
-  // Neutral subject/body — no case details in email (MVP §10).
-  sendNotificationEmail(c.member_id, 'Kelly Online: there is an update on your case', 'Sign in to Kelly Online to read the update on your case.');
-
-  audit(req.user.id, `case.advisor_${kind}`, 'case', c.id);
-  res.json({ ok: true, status: newStatus, statusLabel: MEMBER_STATUS_LABELS[newStatus] });
+  const result = sendAdvisorReply(req.user, req.params.id, { kind: req.body.kind, content: req.body.content });
+  if (result.error) return res.status(result.status || 400).json({ error: result.error });
+  res.json(result);
 });
 
 advisorRouter.post('/cases/:id/notes', requirePermission('cases.notes'), (req, res) => {

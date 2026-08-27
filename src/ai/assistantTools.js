@@ -2,6 +2,7 @@ import { db } from '../db/connection.js';
 import { rolesForUser, overridesForUser } from '../rbac/permissions.js';
 import { setUserRole, setUserPermission, setUserStatus } from '../services/adminActions.js';
 import { addKnowledgeSource, addKnowledgeVersion, SOURCE_TYPES } from '../services/knowledgeActions.js';
+import { sendAdvisorReply } from '../services/caseActions.js';
 
 // Admin assistant toolbox. Each tool declares the permission it requires —
 // enforced server-side per call regardless of what the model asks for.
@@ -193,6 +194,9 @@ export const ASSISTANT_TOOLS = [
     run: (actor, args) => {
       const c = db.prepare(`${CASE_LIST_SELECT} WHERE c.id = ?`).get(Number(args.caseId));
       if (!c) return { error: 'Case not found.' };
+      const latestIntake = db
+        .prepare(`SELECT output_json FROM ai_outputs WHERE case_id = ? AND status = 'ok' ORDER BY id DESC LIMIT 1`)
+        .get(c.id);
       return {
         case: caseRow(c),
         employer: c.employer,
@@ -201,6 +205,9 @@ export const ASSISTANT_TOOLS = [
           .all(c.id),
         documentCount: db.prepare('SELECT COUNT(*) AS n FROM documents WHERE case_id = ?').get(c.id).n,
         messageCount: db.prepare(`SELECT COUNT(*) AS n FROM case_messages WHERE case_id = ? AND visibility = 'member'`).get(c.id).n,
+        // Outstanding questions from the latest AI intake — useful for
+        // drafting an information request with message_member.
+        missingInformation: latestIntake ? JSON.parse(latestIntake.output_json).missingQuestions || [] : [],
       };
     },
   },
@@ -223,6 +230,28 @@ export const ASSISTANT_TOOLS = [
         )
         .all(),
     }),
+  },
+  // ── WRITE: member messaging (confirm-first, draft editable) ────────────
+  {
+    name: 'message_member',
+    permission: 'cases.respond',
+    kind: 'write',
+    editable: ['content'],
+    definition: {
+      description: 'Draft a message to the member on a case. kind "question" asks for missing information and sets the case to "Need information from member"; "message" is a general update; "action_plan" delivers reviewed advice. The draft is shown to the advisor, who can edit it before approving — nothing is sent until then. Once approved it is sent as advisor-approved content. Write member-facing plain English, no jargon, and never state unverified deadlines as fact.',
+      parameters: {
+        type: 'object',
+        properties: {
+          caseId: { type: 'integer' },
+          kind: { type: 'string', enum: ['question', 'message', 'action_plan'] },
+          content: { type: 'string', description: 'The full member-facing message text.' },
+        },
+        required: ['caseId', 'kind', 'content'],
+        additionalProperties: false,
+      },
+    },
+    summarize: (a) => `Send a ${a.kind === 'question' ? 'question (information request)' : a.kind.replace('_', ' ')} to the member on case #${a.caseId}`,
+    run: (actor, args, opts) => sendAdvisorReply(actor, args.caseId, { kind: args.kind, content: args.content }, opts),
   },
   // ── WRITE: users & permissions (confirm-first) ─────────────────────────
   {

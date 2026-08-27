@@ -23,6 +23,18 @@ const MIGRATIONS = [
   // v1 — account preferences + evidence message metadata
   `ALTER TABLE users ADD COLUMN email_notifications INTEGER NOT NULL DEFAULT 1;
    ALTER TABLE case_messages ADD COLUMN meta TEXT;`,
+  // v2 — assistant conversations become threads; existing history moves
+  // into one "Conversation 1" thread per user.
+  `ALTER TABLE assistant_messages ADD COLUMN thread_id INTEGER;
+   ALTER TABLE assistant_actions ADD COLUMN thread_id INTEGER;
+   INSERT INTO assistant_threads (user_id, title)
+     SELECT DISTINCT user_id, 'Conversation 1' FROM assistant_messages;
+   UPDATE assistant_messages SET thread_id =
+     (SELECT t.id FROM assistant_threads t WHERE t.user_id = assistant_messages.user_id LIMIT 1)
+     WHERE thread_id IS NULL;
+   UPDATE assistant_actions SET thread_id =
+     (SELECT t.id FROM assistant_threads t WHERE t.user_id = assistant_actions.user_id LIMIT 1)
+     WHERE thread_id IS NULL;`,
 ];
 {
   let version = db.prepare('PRAGMA user_version').get().user_version;

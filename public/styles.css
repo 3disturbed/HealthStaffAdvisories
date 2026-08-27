@@ -175,8 +175,25 @@ table.data th, table.data td { text-align: left; padding: 0.5rem 0.6rem; border-
   padding: 0.25rem 0.6rem; cursor: pointer; font-size: 0.85rem;
 }
 .assistant-headbtn:hover { background: rgba(255, 255, 255, 0.3); }
-.assistant-body { flex: 1; overflow-y: auto; padding: 0.8rem; }
+.assistant-chatholder { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.assistant-chatwrap { flex: 1; display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.assistant-tabs {
+  display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center;
+  padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--line); background: var(--card);
+}
+.assistant-tab {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.8rem; cursor: pointer;
+}
+.assistant-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.assistant-tab-x { opacity: 0.65; font-size: 0.75rem; }
+.assistant-tab-x:hover { opacity: 1; }
+.assistant-tab-new { font-weight: 700; }
+.assistant-body { flex: 1; overflow-y: auto; padding: 0.8rem; min-height: 0; }
 .assistant-body .msg { max-width: 100%; }
+.assistant-body textarea { margin-top: 0.3rem; }
+.assistant-embed { height: 70vh; min-height: 24rem; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); }
 .assistant-inputrow {
   display: flex; gap: 0.5rem; align-items: flex-end;
   padding: 0.6rem; border-top: 1px solid var(--line); background: var(--card);
