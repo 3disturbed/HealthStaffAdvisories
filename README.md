@@ -47,7 +47,7 @@ Full scope and acceptance criteria: [docs/MVP.md](docs/MVP.md).
 - **Database:** SQLite via the built-in `node:sqlite` module (no native build step), with full-text search (FTS5) for retrieval.
 - **Frontend:** vanilla HTML5/CSS/JS, mobile-first, served from `public/`.
 - **Provider adapters:**
-  - **LLM:** Anthropic Claude by default; a deterministic offline stub runs when no API key is set.
+  - **LLM:** OpenAI, configured entirely from the Admin area (API key and model are stored in application settings — no key in code or `.env`). Until a key is saved, AI intake is off and the case loop still works.
   - **Email:** dev mailbox in development; SMTP-ready.
   - **File storage:** private local directory; S3-ready.
 
@@ -63,7 +63,7 @@ npm test        # run the test suite
 
 - The main administration account is **mapadocrew@gmail.com** (seeded on first run). It can grant and remove roles/permissions for all other accounts from the Admin area.
 - Secrets and configuration live in `.env` (never committed).
-- `ANTHROPIC_API_KEY` is optional — without it, the AI intake runs a deterministic stub.
+- The OpenAI API key is entered by an administrator in **Admin → Settings** after first sign-in; AI intake stays off until then, and the member ↔ Kelly case loop works either way.
 
 ## Documentation
 
