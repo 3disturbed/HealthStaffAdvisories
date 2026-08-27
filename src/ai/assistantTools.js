@@ -121,6 +121,63 @@ export const ASSISTANT_TOOLS = [
     }),
   },
   {
+    name: 'top_priority_cases',
+    permission: 'cases.review',
+    kind: 'read',
+    definition: {
+      description: 'Open cases ranked by priority: urgency first, then soonest known deadline / next important date, then age (max 20). Each entry includes its next upcoming timeline event where one is known. Use this to find the highest-priority or shortest-deadline case. All dates are candidates extracted during intake and need human verification.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    run: () => ({
+      cases: db
+        .prepare(`${CASE_LIST_SELECT} WHERE c.status != 'closed'
+          ORDER BY CASE c.urgency WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+          c.next_important_at IS NULL, c.next_important_at, c.created_at LIMIT 20`)
+        .all()
+        .map((c) => {
+          const nextEvent = db
+            .prepare(`SELECT event_date, description FROM case_timeline WHERE case_id = ? AND event_date >= date('now') ORDER BY event_date LIMIT 1`)
+            .get(c.id);
+          return {
+            ...caseRow(c),
+            nextTimelineEvent: nextEvent
+              ? { date: nextEvent.event_date, description: String(nextEvent.description).slice(0, 200) }
+              : null,
+          };
+        }),
+      note: 'Dates are candidate extractions — verify before relying on them.',
+    }),
+  },
+  {
+    name: 'case_timeline',
+    permission: 'cases.review',
+    kind: 'read',
+    definition: {
+      description: 'Timeline events for one case: dates, short event descriptions, source and confirmation status. Dates are candidates and need human verification.',
+      parameters: {
+        type: 'object',
+        properties: { caseId: { type: 'integer' } },
+        required: ['caseId'],
+        additionalProperties: false,
+      },
+    },
+    run: (actor, args) => {
+      const c = db.prepare('SELECT id FROM cases WHERE id = ?').get(Number(args.caseId));
+      if (!c) return { error: 'Case not found.' };
+      return {
+        timeline: db
+          .prepare('SELECT event_date, description, source, confidence, confirmed FROM case_timeline WHERE case_id = ? ORDER BY event_date IS NULL, event_date')
+          .all(c.id)
+          .map((t) => ({
+            date: t.event_date,
+            description: String(t.description).slice(0, 200),
+            source: t.source,
+            confirmed: !!t.confirmed,
+          })),
+      };
+    },
+  },
+  {
     name: 'case_summary',
     permission: 'cases.review',
     kind: 'read',

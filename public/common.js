@@ -82,6 +82,11 @@ export async function renderNav(activeId) {
       window.location.href = '/';
     });
   }
+  // Floating assistant for accounts that hold at least one assistant
+  // permission (the server gates every call regardless).
+  if (user && ['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p))) {
+    import('/assistant-widget.js').then((m) => m.mountAssistantWidget()).catch(() => {});
+  }
   return user;
 }
 

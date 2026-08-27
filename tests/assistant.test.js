@@ -12,6 +12,7 @@ process.env.ADMIN_INITIAL_PASSWORD = 'admin-test-password-1';
 const { app } = await import('../src/server.js');
 const { db, setSetting } = await import('../src/db/connection.js');
 const { runAssistantTurn, confirmAction, cancelAction } = await import('../src/ai/assistant.js');
+const { toolByName } = await import('../src/ai/assistantTools.js');
 const { hashPassword } = await import('../src/auth/passwords.js');
 
 let server;
@@ -198,6 +199,36 @@ test('tool loop stops after the cap', async () => {
   };
   await runAssistantTurn(admin, 'loop forever', { complete });
   assert.equal(n, 6);
+});
+
+test('priority and timeline tools rank by urgency then deadline', async () => {
+  const owner = makeUser('deadline-member@example.com', ['member']);
+  const insertCase = (title, urgency, nextAt) =>
+    db.prepare(`INSERT INTO cases (member_id, title, what_happened, urgency, next_important_at) VALUES (?, ?, ?, ?, ?)`)
+      .run(owner.id, title, 'test narrative', urgency, nextAt).lastInsertRowid;
+  const soonNormal = insertCase('Normal case, deadline soonest', 'normal', '2026-08-28');
+  const laterCritical = insertCase('Critical case, later deadline', 'critical', '2026-09-15');
+  db.prepare(`INSERT INTO case_timeline (case_id, event_date, description, source) VALUES (?, '2026-09-15', 'Disciplinary hearing', 'ai')`).run(laterCritical);
+
+  // Reviewer without cases.review sees neither tool.
+  const reviewer = db.prepare('SELECT * FROM users WHERE email = ?').get('queue-only@example.com');
+  const { complete, seen } = fakeModel([textResponse('hi')]);
+  await runAssistantTurn(reviewer, 'hi', { complete });
+  assert.ok(seen.toolNames.includes('top_priority_cases'));
+  assert.ok(seen.toolNames.includes('case_timeline'));
+
+  const ranked = toolByName.get('top_priority_cases').run(reviewer, {}).cases;
+  const posCritical = ranked.findIndex((c) => c.id === laterCritical);
+  const posNormal = ranked.findIndex((c) => c.id === soonNormal);
+  assert.ok(posCritical >= 0 && posNormal >= 0);
+  assert.ok(posCritical < posNormal, 'critical urgency outranks a sooner deadline on a normal case');
+  assert.equal(ranked[posCritical].nextTimelineEvent.description, 'Disciplinary hearing');
+  assert.equal(ranked[posCritical].nextImportantAt, '2026-09-15');
+
+  const timeline = toolByName.get('case_timeline').run(reviewer, { caseId: laterCritical }).timeline;
+  assert.equal(timeline.length, 1);
+  assert.equal(timeline[0].confirmed, false);
+  assert.ok(toolByName.get('case_timeline').run(reviewer, { caseId: 99999 }).error);
 });
 
 test('kill switch blocks chat but not confirmation of pending actions', async () => {
