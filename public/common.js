@@ -1,30 +1,9 @@
 // Shared helpers for all pages. No framework — plain browser JS.
 
-// PWA: register the (network-first) service worker and capture the install
-// prompt early so pages can offer an "Install app" button later.
+// PWA: register the (network-first) service worker. The install prompt is
+// captured earlier, in /pwa-early.js, and the UI lives in /install-ui.js.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
-}
-window.__kellyInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  window.__kellyInstallPrompt = e;
-  window.dispatchEvent(new Event('kelly-installable'));
-});
-
-export function installInfo() {
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  return { standalone, ios, promptReady: !!window.__kellyInstallPrompt };
-}
-
-export async function promptInstall() {
-  const deferred = window.__kellyInstallPrompt;
-  if (!deferred) return false;
-  deferred.prompt();
-  const choice = await deferred.userChoice;
-  if (choice.outcome === 'accepted') window.__kellyInstallPrompt = null;
-  return choice.outcome === 'accepted';
 }
 
 export async function api(path, { method = 'GET', body, formData } = {}) {

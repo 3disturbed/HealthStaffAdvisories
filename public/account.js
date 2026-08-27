@@ -1,4 +1,5 @@
 import { api, esc, el, fmtDate, requireUser, can, showNotice } from '/common.js';
+import { installPanel, wireInstallPanel } from '/install-ui.js';
 
 const view = document.getElementById('view');
 let user;
@@ -42,6 +43,8 @@ async function render() {
       <p><label class="small"><input id="emailPref" type="checkbox" ${profile.emailNotifications ? 'checked' : ''}> Send me notification emails</label></p>
     </div>
 
+    ${installPanel({ variant: 'section' })}
+
     <div class="card">
       <h3>Active sessions</h3>
       <div class="table-scroll"><table class="data">
@@ -75,6 +78,7 @@ async function render() {
 
   const msg = el('msg');
   const oops = (err) => { showNotice(msg, 'error', err.message); window.scrollTo(0, 0); };
+  wireInstallPanel(() => render());
 
   el('profile-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -137,4 +141,9 @@ async function render() {
 }
 
 user = await requireUser('account');
-if (user) render().catch((err) => { view.innerHTML = `<div class="notice error">${esc(err.message)}</div>`; });
+if (user) {
+  // Installability can be announced after first paint.
+  window.addEventListener('kelly-installable', () => render().catch(() => {}));
+  window.addEventListener('kelly-installed', () => render().catch(() => {}));
+  render().catch((err) => { view.innerHTML = `<div class="notice error">${esc(err.message)}</div>`; });
+}
