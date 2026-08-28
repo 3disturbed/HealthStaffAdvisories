@@ -379,5 +379,33 @@ test('a failed widget load is reported and can be retried', async () => {
   // Swallowing the import error left the button permanently dead and silent.
   const common = fs.readFileSync(path.join(process.cwd(), 'public', 'common.js'), 'utf8');
   assert.match(common, /assistantLoad\.catch\(\(\) => \{ assistantLoad = null; \}\)/);
-  assert.match(common, /catch \{\s*toast\('error'/);
+  assert.match(common, /toast\('error', 'The assistant could not be loaded/);
+});
+
+test('only a real load failure is reported as one', async () => {
+  // Three different faults used to arrive as "check your connection": the
+  // fetch failing, the widget being a stale copy without the export, and the
+  // panel throwing on the way open. Only the first is about the network, and
+  // the other two need different advice from the reader.
+  const common = fs.readFileSync(path.join(process.cwd(), 'public', 'common.js'), 'utf8');
+  // A stale half of a deploy is skew, not a network fault — purge and say so.
+  assert.match(common, /openAssistantWidget !== 'function'[\s\S]{0,320}purgeCaches\(\)/);
+  assert.match(common, /toast\('error', 'The app has been updated/);
+  // A throw on the way open names itself rather than borrowing the load message.
+  assert.match(common, /could not open: \$\{err\.message\}/);
+  // Every branch leaves the real error where it can be read back.
+  assert.equal((common.match(/console\.error\('\[assistant\]/g) || []).length, 3);
+});
+
+test('a panel that throws on the way open leaves a way back in', async () => {
+  // toggle() hides the launcher before it builds the chat, so a throw in
+  // createChatUI left no floating button and a blank panel — the reported
+  // "assistant button just disappears".
+  const widget = fs.readFileSync(path.join(process.cwd(), 'public', 'assistant-widget.js'), 'utf8');
+  const toggleBody = widget.match(/function toggle\(show\) \{[\s\S]*?\n  \}/)[0];
+  assert.match(toggleBody, /try \{\s*createChatUI\(holder\);\s*\} catch/);
+  // Reopening must be possible, and the fault must be visible in the panel.
+  assert.match(toggleBody, /loaded = false;[\s\S]{0,120}holder\.innerHTML/);
+  // A mount that produced no toggle must say so instead of no-opping.
+  assert.match(widget, /if \(!toggleWidget\) throw new Error/);
 });

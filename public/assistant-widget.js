@@ -231,16 +231,30 @@ export function mountAssistantWidget() {
     </div>`;
   document.body.appendChild(overlay);
 
+  const holder = overlay.querySelector('#assistant-chatholder');
   let loaded = false;
   function toggle(show) {
     overlay.classList.toggle('open', show);
     fab.classList.toggle('hidden', show);
-    if (show && !loaded) {
-      loaded = true;
-      createChatUI(document.getElementById('assistant-chatholder'));
+    if (!show || loaded) return;
+    loaded = true;
+    // Opening hides the launcher, so a throw in here used to leave no way back
+    // in: no floating button and a blank panel, with the failure surfacing far
+    // away as a toast about the network. Keep it where the conversation would
+    // have been, and let the next press try again.
+    try {
+      createChatUI(holder);
+    } catch (err) {
+      loaded = false;
+      holder.innerHTML = `<div class="notice error small">The assistant could not start: ${esc(err.message)}</div>`;
     }
   }
   toggleWidget = toggle;
+
+  // Compatibility shim: a browser holding a common.js from before the launcher
+  // moved to openAssistantWidget() still calls this. Costs a line, and spares
+  // whoever loads one of the two files from cache a dead button.
+  window.__openAssistant = () => toggle(true);
 
   fab.addEventListener('click', () => toggle(true));
   overlay.querySelector('#assistant-close').addEventListener('click', () => toggle(false));
@@ -255,5 +269,7 @@ export function mountAssistantWidget() {
 // the panel even when it lands before mountAssistantWidget() has run.
 export function openAssistantWidget() {
   mountAssistantWidget();
-  toggleWidget?.(true);
+  // Silence here is what the caller cannot report: say the mount failed.
+  if (!toggleWidget) throw new Error('the assistant panel failed to mount');
+  toggleWidget(true);
 }

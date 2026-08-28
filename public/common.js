@@ -104,10 +104,7 @@ function setBadges(unread) {
 let assistantLoad = null;
 function loadAssistant() {
   if (!assistantLoad) {
-    assistantLoad = import('/assistant-widget.js').then((m) => {
-      m.mountAssistantWidget();
-      return m;
-    });
+    assistantLoad = import('/assistant-widget.js');
     // A failed load must not leave the button dead for the rest of the
     // session: forget it so the next click tries again.
     assistantLoad.catch(() => { assistantLoad = null; });
@@ -116,10 +113,34 @@ function loadAssistant() {
 }
 
 export async function openAssistant() {
+  let widget;
   try {
-    (await loadAssistant()).openAssistantWidget();
-  } catch {
+    widget = await loadAssistant();
+  } catch (err) {
+    // Genuinely could not fetch the module — the one case where blaming the
+    // connection is honest.
+    console.error('[assistant] module failed to load', err);
     toast('error', 'The assistant could not be loaded. Check your connection and try again.');
+    return;
+  }
+
+  // common.js and the widget are two files that have to agree. A browser can
+  // hold a fresh one and a stale one across a deploy, and the stale widget has
+  // no openAssistantWidget() — which is a version skew, not a network fault.
+  // Clear the caches that caused it and say what will actually help.
+  if (typeof widget.openAssistantWidget !== 'function') {
+    console.error('[assistant] stale widget module: no openAssistantWidget export');
+    await import('/version-check.js').then((m) => m.purgeCaches()).catch(() => {});
+    toast('error', 'The app has been updated — refresh the page to use the assistant.');
+    return;
+  }
+
+  try {
+    widget.openAssistantWidget();
+  } catch (err) {
+    // Not a loading problem. Name it, and leave it in the console to chase.
+    console.error('[assistant] failed to open', err);
+    toast('error', `The assistant could not open: ${err.message}`);
   }
 }
 
@@ -280,7 +301,9 @@ export async function renderNav(activeId) {
     // permission (the server gates every call regardless). Failure is quiet
     // here — nobody has asked for the assistant yet; openAssistant() reports it
     // if and when somebody presses a launcher.
-    if (canUseAssistant(user)) loadAssistant().catch(() => {});
+    if (canUseAssistant(user)) {
+      loadAssistant().then((m) => m.mountAssistantWidget()).catch(() => {});
+    }
     fetchNotifications().then((n) => setBadges(n.unread));
   }
   return user;
