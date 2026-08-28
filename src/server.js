@@ -62,6 +62,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Member and case data must never land in a shared machine's disk cache, and
+// a cached JSON body can otherwise resurface as stale UI after a change.
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 app.use('/api', csrfGuard);
 app.use('/api/auth', authRouter);
 app.use('/api/cases', casesRouter);
@@ -81,6 +88,13 @@ app.use('/api', documentsRouter);
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ version: BUILD_VERSION });
+});
+
+// Browsers probe /favicon.ico regardless of <link rel="icon">; without this
+// every page load logs a 404 in the console.
+app.get('/favicon.ico', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(config.root, 'public', 'icons', 'icon-192.png'));
 });
 
 // Entry documents are never cached, so a browser can always discover a new

@@ -1,24 +1,13 @@
 import { api, esc, escAttr, safeUrl, fmtDate, requireUser, can } from '/common.js';
+import { adminSections, hasAdminSurface, canUseAssistant } from '/nav-model.js';
 import { enterView, stagger, toast, setBusy, countUp, skelTable, emptyState } from '/ui.js';
 
 const view = document.getElementById('view');
 let user;
 
-function canUseAssistant() {
-  return ['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p));
-}
-
-const TAB_DEFS = () => {
-  const tabs = [['overview', 'Overview']];
-  if (can(user, 'users.manage')) tabs.push(['users', 'Users & permissions']);
-  if (canUseAssistant()) tabs.push(['assistant', 'Assistant']);
-  if (can(user, 'system.admin')) tabs.push(['membership', 'Membership'], ['settings', 'AI settings'], ['mailbox', 'Dev mailbox']);
-  if (can(user, 'knowledge.manage')) tabs.push(['knowledge', 'Knowledge sources']);
-  if (['je.reference.manage', 'je.monitor'].some((p) => can(user, p))) tabs.push(['banding', 'Job evaluation']);
-  if (can(user, 'faq.manage')) tabs.push(['faq', 'FAQ']);
-  if (can(user, 'audit.view')) tabs.push(['audit', 'Audit log']);
-  return tabs;
-};
+// This tab row, the header nav, the mobile tab bar and the nav drawer all read
+// the one derivation in /nav-model.js — four hand-kept copies had drifted.
+const TAB_DEFS = () => adminSections(user).map((s) => [s.id, s.label]);
 
 function tabsBar(active) {
   return `<div class="tabs">${TAB_DEFS().map(([id, label]) => `<button data-tab="${id}" class="${id === active ? 'active' : ''}">${label}</button>`).join('')}</div>`;
@@ -44,7 +33,7 @@ async function renderOverview() {
   if (can(user, 'users.manage')) wants.push(['users', api('/admin/users')]);
   if (can(user, 'cases.review')) wants.push(['queue', api('/advisor/queue?view=all')]);
   if (can(user, 'system.admin')) wants.push(['settings', api('/admin/settings')]);
-  else if (canUseAssistant()) wants.push(['assistant', api('/admin/assistant')]);
+  else if (canUseAssistant(user)) wants.push(['assistant', api('/admin/assistant')]);
   if (can(user, 'knowledge.manage')) wants.push(['knowledge', api('/knowledge/sources')]);
   if (can(user, 'faq.manage')) wants.push(['faq', api('/faq/manage')]);
   if (can(user, 'audit.view')) wants.push(['audit', api('/admin/audit')]);
@@ -67,6 +56,17 @@ async function renderOverview() {
     tiles.push({ hash: '#/settings', num: results.settings.aiConfigured ? 'ON' : 'OFF', label: results.settings.aiDisabled ? '⚠ AI kill switch is ON' : `AI ${results.settings.aiConfigured ? `ready (${esc(results.settings.aiModel)})` : '— no API key'}`, alert: results.settings.aiDisabled || !results.settings.aiConfigured });
   } else if (results.assistant) {
     tiles.push({ hash: '#/assistant', num: results.assistant.enabled ? 'ON' : 'OFF', label: results.assistant.enabled ? 'assistant ready' : 'assistant unavailable', alert: !results.assistant.enabled });
+  }
+  if (results.settings) {
+    // Payments are invisible until someone goes looking for them, so surface
+    // the connection state where an admin lands.
+    const st = results.settings;
+    tiles.push({
+      hash: '#/membership',
+      num: st.stripeConfigured ? (st.stripeTestMode ? 'TEST' : 'LIVE') : 'OFF',
+      label: st.stripeConfigured ? 'Stripe payments connected' : 'Stripe not connected — members cannot pay',
+      alert: !st.stripeConfigured,
+    });
   }
   if (results.knowledge) {
     const n = results.knowledge.sources.length;
@@ -189,6 +189,23 @@ async function renderMembership() {
     <h1>Admin</h1>${tabsBar('membership')}
     <div id="msg"></div>
 
+    <div class="card" id="stripe">
+      <h3 class="mt0">Stripe payment keys</h3>
+      <p>Status: ${settings.stripeConfigured ? '<span class="tag role">connected</span>' : '<span class="tag high">no keys</span>'}
+        ${settings.stripeTestMode ? '<span class="tag critical">TEST MODE</span>' : ''}</p>
+      ${settings.stripeConfigured ? '' : '<p class="small muted">Until these are saved, members see the tiers but cannot pay — <code>/membership/checkout</code> refuses and the upgrade buttons stay disabled.</p>'}
+      ${settings.stripeKeyMasked ? `<p class="small muted">Secret key: ${esc(settings.stripeKeyMasked)} · Webhook: ${esc(settings.stripeWebhookMasked || 'not set')}</p>` : ''}
+      <form id="stripe-form">
+        <label for="stripeKey">Secret key</label>
+        <input id="stripeKey" type="password" autocomplete="off" placeholder="sk_live_… or sk_test_…">
+        <label for="stripeWhsec">Webhook signing secret</label>
+        <p class="hint">Point the endpoint at <code>${esc(window.location.origin)}/api/stripe/webhook</code>. Local testing: <code>stripe listen --forward-to localhost:3000/api/stripe/webhook</code> prints one.</p>
+        <input id="stripeWhsec" type="password" autocomplete="off" placeholder="whsec_…">
+        <p><button class="btn" type="submit">Save Stripe keys</button>
+        ${settings.stripeConfigured ? '<button class="btn danger" type="button" id="clear-stripe">Disconnect</button>' : ''}</p>
+      </form>
+    </div>
+
     <div class="card">
       <h3 class="mt0">Tiers</h3>
       <p class="small muted">Prices and daily AI allowances apply immediately — no deploy needed. Members are never rejected when their allowance runs out; their AI requests queue until it frees.</p>
@@ -201,22 +218,6 @@ async function renderMembership() {
           <label>AI analyses / 24h</label><input name="allowance" type="text" inputmode="numeric" value="${escAttr(t.aiDailyAllowance)}">
           <p><button class="btn small" type="submit">Save ${esc(t.id)}</button></p>
         </form>`).join('')}
-    </div>
-
-    <div class="card">
-      <h3 class="mt0">Stripe</h3>
-      <p>Status: ${settings.stripeConfigured ? '<span class="tag role">connected</span>' : '<span class="tag high">no keys</span>'}
-        ${settings.stripeTestMode ? '<span class="tag critical">TEST MODE</span>' : ''}</p>
-      ${settings.stripeKeyMasked ? `<p class="small muted">Secret key: ${esc(settings.stripeKeyMasked)} · Webhook: ${esc(settings.stripeWebhookMasked || 'not set')}</p>` : ''}
-      <form id="stripe-form">
-        <label for="stripeKey">Secret key</label>
-        <input id="stripeKey" type="password" autocomplete="off" placeholder="sk_live_… or sk_test_…">
-        <label for="stripeWhsec">Webhook signing secret</label>
-        <p class="hint">Local testing: <code>stripe listen --forward-to localhost:3000/api/stripe/webhook</code> prints one.</p>
-        <input id="stripeWhsec" type="password" autocomplete="off" placeholder="whsec_…">
-        <p><button class="btn" type="submit">Save Stripe keys</button>
-        ${settings.stripeConfigured ? '<button class="btn danger" type="button" id="clear-stripe">Disconnect</button>' : ''}</p>
-      </form>
     </div>
 
     <div class="card">
@@ -248,10 +249,10 @@ async function renderMembership() {
       <details>
         <summary><strong>Grant complimentary membership</strong></summary>
         <form id="comp-form">
-          <label>Member</label>
-          <select name="userId">${billing.members.map((m) => `<option value="${escAttr(m.id)}">${esc(m.displayName)} (${esc(m.email)})</option>`).join('')}</select>
-          <label>Tier</label>
-          <select name="tierId">${tiers.filter((t) => t.active).map((t) => `<option value="${escAttr(t.id)}">${esc(t.name)}</option>`).join('')}</select>
+          <label for="comp-user">Member</label>
+          <select id="comp-user" name="userId">${billing.members.map((m) => `<option value="${escAttr(m.id)}">${esc(m.displayName)} (${esc(m.email)})</option>`).join('')}</select>
+          <label for="comp-tier">Tier</label>
+          <select id="comp-tier" name="tierId">${tiers.filter((t) => t.active).map((t) => `<option value="${escAttr(t.id)}">${esc(t.name)}</option>`).join('')}</select>
           <label>Months</label><input name="months" type="text" inputmode="numeric" value="1">
           <label>Note</label><input name="note" type="text" maxlength="200">
           <p><button class="btn small" type="submit">Grant</button></p>
@@ -565,11 +566,12 @@ async function route() {
 
 user = await requireUser('admin');
 if (user) {
-  // Derived from TAB_DEFS() rather than a hand-maintained permission list:
-  // that list had already drifted (a je.monitor-only account was locked out of
-  // the Job evaluation tab it could see). TAB_DEFS() always yields 'overview',
-  // so anything beyond that means this account has a real admin surface.
-  if (TAB_DEFS().length <= 1) {
+  // hasAdminSurface() is the same derivation the header link, the tab bar and
+  // this page's tab row use: 'overview' always lands, so anything beyond it
+  // means a real admin surface. Never a hand-maintained permission list — that
+  // is what drifted before (a je.monitor-only account was locked out of the Job
+  // evaluation tab it could see).
+  if (!hasAdminSurface(user)) {
     view.innerHTML = '<div class="notice error">Your account does not have access to this area.</div>';
   } else {
     window.addEventListener('hashchange', route);

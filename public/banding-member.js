@@ -112,15 +112,15 @@ async function renderStart() {
         <input id="je-title" type="text" required maxlength="120" placeholder="e.g. Healthcare assistant, Ward clerk, Staff nurse">
         <label for="je-employer">Employer / NHS organisation</label>
         <input id="je-employer" type="text" maxlength="120">
-        <label>Your current band</label>
-        <div class="option-grid multi" id="je-band">
+        <p class="field-label" id="je-band-label">Your current band</p>
+        <div class="option-grid multi" id="je-band" role="group" aria-labelledby="je-band-label">
           ${['1', '2', '3', '4', '5', '6', '7', '8a', '8b', '8c', '8d', '9'].map((b) => `<button type="button" class="option-card band-opt" data-band="${b}">Band ${b}</button>`).join('')}
           <button type="button" class="option-card band-opt" data-band="">I’m not sure</button>
         </div>
         <label for="je-since">Roughly when did you start this job? <span class="muted">(optional)</span></label>
         <input id="je-since" type="date">
-        <label>What are you asking for?</label>
-        <div class="option-grid" id="je-kind">
+        <p class="field-label" id="je-kind-label">What are you asking for?</p>
+        <div class="option-grid" id="je-kind" role="group" aria-labelledby="je-kind-label">
           <button type="button" class="option-card" data-kind="band_review">My job has grown — I want it looked at again</button>
           <button type="button" class="option-card" data-kind="job_match">I think my job was banded wrong from the start</button>
           <button type="button" class="option-card" data-kind="equal_pay">Colleagues doing my job are paid more</button>
@@ -533,14 +533,14 @@ function collectDutyRows() {
 function dutyRowHtml(d, i) {
   return `
     <div class="duty-row card" data-i="${i}">
-      <label>Duty</label>
-      <input type="text" data-f="duty" maxlength="300" value="${escAttr(d.duty || '')}" placeholder="What you now do">
+      <label for="duty-${i}-duty">Duty</label>
+      <input id="duty-${i}-duty" name="duty-${i}-duty" type="text" data-f="duty" maxlength="300" value="${escAttr(d.duty || '')}" placeholder="What you now do">
       <div class="duty-row-meta">
-        <span><label>Since (roughly)</label><input type="text" data-f="since" maxlength="40" value="${escAttr(d.since || '')}" placeholder="e.g. spring 2025"></span>
-        <span><label>How often</label><input type="text" data-f="frequency" maxlength="60" value="${escAttr(d.frequency || '')}" placeholder="e.g. daily"></span>
+        <span><label for="duty-${i}-since">Since (roughly)</label><input id="duty-${i}-since" name="duty-${i}-since" type="text" data-f="since" maxlength="40" value="${escAttr(d.since || '')}" placeholder="e.g. spring 2025"></span>
+        <span><label for="duty-${i}-frequency">How often</label><input id="duty-${i}-frequency" name="duty-${i}-frequency" type="text" data-f="frequency" maxlength="60" value="${escAttr(d.frequency || '')}" placeholder="e.g. daily"></span>
       </div>
-      <label>Evidence <span class="muted">(optional)</span></label>
-      <input type="text" data-f="evidence" maxlength="200" value="${escAttr(d.evidence || '')}" placeholder="e.g. rota, email from manager">
+      <label for="duty-${i}-evidence">Evidence <span class="muted">(optional)</span></label>
+      <input id="duty-${i}-evidence" name="duty-${i}-evidence" type="text" data-f="evidence" maxlength="200" value="${escAttr(d.evidence || '')}" placeholder="e.g. rota, email from manager">
     </div>`;
 }
 function wireDutyRows() {

@@ -1,4 +1,4 @@
-import { api, esc, escAttr, el, fmtDate, fmtDay, requireUser, can, showNotice } from '/common.js';
+import { api, esc, escAttr, el, fmtDate, fmtDay, requireUser, can, hasAdminSurface, showNotice } from '/common.js';
 import { installPanel, wireInstallPanel } from '/install-ui.js';
 import { enterView, setBusy, toast, skelForm } from '/ui.js';
 
@@ -142,6 +142,10 @@ async function renderMembership() {
     quotes[t.id] = await api(`/membership/quote/${t.id}`).catch(() => null);
   }
 
+  // A balance under the Stripe minimum is applied outright; anything else
+  // needs keys, so the button must not offer a checkout that will 503.
+  const payable = (q) => q.autoApply || membership.stripeEnabled;
+
   paint('membership', `
     <div class="card">
       <h3>Membership</h3>
@@ -162,7 +166,7 @@ async function renderMembership() {
           <div class="perm-item">
             <div class="perm-head">
               <span><strong>${esc(t.name)}</strong> — ${pounds(q.amountPence)}${q.kind === 'upgrade' ? ' for the rest of your period' : ' for your first month'}</span>
-              <button class="btn small" data-upgrade="${escAttr(t.id)}">${q.autoApply ? 'Upgrade free' : 'Upgrade'}</button>
+              <button class="btn small" data-upgrade="${escAttr(t.id)}" ${payable(q) ? '' : 'disabled'}>${q.autoApply ? 'Upgrade free' : 'Upgrade'}</button>
             </div>
             <div class="muted small">
               ${q.kind === 'upgrade'
@@ -289,7 +293,7 @@ async function renderLinks() {
     <div class="card">
       <h3>Quick links</h3>
       ${can(user, 'cases.review') ? '<p class="mt0"><a href="/advisor.html">Advisor dashboard</a></p>' : ''}
-      <p class="mt0"><a href="/admin.html">Admin area</a></p>
+      ${hasAdminSurface(user) ? '<p class="mt0"><a href="/admin.html">Admin area</a></p>' : ''}
     </div>`, true);
 }
 

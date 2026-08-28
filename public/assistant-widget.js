@@ -4,7 +4,12 @@ import { api, esc, escAttr, fmtDate } from '/common.js';
 // and embedded in the Admin → Assistant tab. Each tab is an independent
 // conversation (thread) so parallel tasks keep separate context.
 
+// Each chat instance needs its own field ids: the floating widget and the
+// embedded Admin -> Assistant panel can both be live on the same page.
+let chatSeq = 0;
+
 export function createChatUI(container) {
+  const uid = `assistant-${++chatSeq}`;
   container.innerHTML = `
     <div class="assistant-chatwrap">
       <div class="assistant-tabs" data-tabs></div>
@@ -14,7 +19,8 @@ export function createChatUI(container) {
         <div class="skel skel-line" data-w="40"></div>
       </div>
       <form class="assistant-inputrow" data-form>
-        <textarea data-text rows="2" maxlength="4000" placeholder="Ask about accounts, cases, deadlines…" aria-label="Message the assistant"></textarea>
+        <label class="sr-only" for="${uid}-text">Message the assistant</label>
+        <textarea id="${uid}-text" name="message" data-text rows="2" maxlength="4000" placeholder="Ask about accounts, cases, deadlines…"></textarea>
         <button class="btn" type="submit" data-send>Send</button>
       </form>
     </div>`;
@@ -85,7 +91,8 @@ export function createChatUI(container) {
         <strong>Proposed action:</strong> ${esc(a.summary)}
         ${editable
           ? `<p class="small">Review the draft — edit it if needed, then approve to send:</p>
-             <textarea data-edit="${a.id}" rows="8">${esc(a.args.content || '')}</textarea>`
+             <label class="sr-only" for="${uid}-action-${a.id}">Draft message for action ${a.id}</label>
+             <textarea id="${uid}-action-${a.id}" name="content" data-edit="${a.id}" rows="8">${esc(a.args.content || '')}</textarea>`
           : `<details><summary>details</summary><div class="table-scroll"><pre class="small">${esc(JSON.stringify(a.args, null, 2))}</pre></div></details>`}
         <p>
           <button class="btn small" type="button" data-approve="${a.id}">${editable ? 'Approve & send' : 'Approve'}</button>

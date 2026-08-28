@@ -1,6 +1,8 @@
 // Shared helpers for all pages. No framework — plain browser JS.
 import { ICONS, pop, openSheet } from '/ui.js';
 import { escAttr, safeUrl } from '/escape.js';
+import { can, canUseAssistant, hasAdminSurface } from '/nav-model.js';
+import { mountNavDrawer } from '/nav-drawer.js';
 
 // PWA: register the (network-first) service worker. The install prompt is
 // captured earlier, in /pwa-early.js; theme in /theme-boot.js.
@@ -38,8 +40,9 @@ export async function currentUser() {
   return cachedUser;
 }
 
-export function can(user, permission) {
-  return !!user && user.permissions.includes(permission);
+export async function signOut() {
+  await api('/auth/logout', { method: 'POST' });
+  window.location.href = '/';
 }
 
 export function esc(value) {
@@ -48,11 +51,13 @@ export function esc(value) {
   return div.innerHTML;
 }
 
-// escAttr and safeUrl live in /escape.js (DOM-free) so node --test can import
-// them directly; re-exported here so pages keep importing from one place.
+// escAttr and safeUrl live in /escape.js, can() and the nav derivations in
+// /nav-model.js — both DOM-free so node --test can import them directly.
+// Re-exported here so pages keep importing from one place.
 // Use escAttr inside quoted attributes (esc leaves quotes unescaped), esc for
 // text content.
 export { escAttr, safeUrl };
+export { can, hasAdminSurface };
 
 export function el(id) { return document.getElementById(id); }
 
@@ -117,12 +122,12 @@ function tabsForRole(user) {
       { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
     ];
   }
-  if (['users.manage', 'system.admin', 'audit.view', 'knowledge.manage'].some((p) => can(user, p))) {
+  if (hasAdminSurface(user)) {
     const tabs = [
       { id: 'admin-overview', icon: 'overview', label: 'Overview', href: '/admin.html#/overview' },
     ];
     if (can(user, 'users.manage')) tabs.push({ id: 'admin-users', icon: 'users', label: 'Users', href: '/admin.html#/users' });
-    if (['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p))) {
+    if (canUseAssistant(user)) {
       tabs.push({ id: 'assistant', icon: 'chat', label: 'Assistant', action: 'assistant' });
     }
     tabs.push(
@@ -248,9 +253,7 @@ export async function renderNav(activeId) {
     if (can(user, 'cases.own')) links.push(['portal', '/portal.html', 'My cases']);
     if (can(user, 'je.own')) links.push(['banding', '/portal.html#/banding', 'Band review']);
     if (can(user, 'cases.review')) links.push(['advisor', '/advisor.html', 'Advisor']);
-    if (['users.manage', 'system.admin', 'audit.view', 'knowledge.manage', 'cases.review'].some((p) => can(user, p))) {
-      links.push(['admin', '/admin.html', 'Admin']);
-    }
+    if (hasAdminSurface(user)) links.push(['admin', '/admin.html', 'Admin']);
     links.push(['faq', '/faq.html', 'Questions', 'nav-keep']);
     links.push(['account', '/account.html', 'Account'], ['logout', '#logout', 'Sign out']);
   }
@@ -268,14 +271,16 @@ export async function renderNav(activeId) {
     bell.innerHTML = `${ICONS.bell}<span data-alert-badge></span>`;
     bell.addEventListener('click', () => openAlerts(user));
     nav.appendChild(bell);
+    // Everything else this account can reach — including the sections too deep
+    // for the header links or the five mobile tabs.
+    mountNavDrawer(nav, user, signOut);
   }
 
   const logout = nav.querySelector('[data-nav="logout"]');
   if (logout) {
-    logout.addEventListener('click', async (e) => {
+    logout.addEventListener('click', (e) => {
       e.preventDefault();
-      await api('/auth/logout', { method: 'POST' });
-      window.location.href = '/';
+      signOut();
     });
   }
 
@@ -283,7 +288,7 @@ export async function renderNav(activeId) {
     renderTabBar(user);
     // Floating assistant for accounts holding at least one assistant
     // permission (the server gates every call regardless).
-    if (['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p))) {
+    if (canUseAssistant(user)) {
       import('/assistant-widget.js').then((m) => m.mountAssistantWidget()).catch(() => {});
     }
     fetchNotifications().then((n) => setBadges(n.unread));

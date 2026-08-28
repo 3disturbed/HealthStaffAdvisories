@@ -340,3 +340,22 @@ test('kill switch blocks chat but not confirmation of pending actions', async ()
   assert.equal(confirm.status, 200);
   setSetting('ai_disabled', '0');
 });
+
+test('the closed assistant panel cannot swallow clicks meant for its launcher', async () => {
+  // The panel keeps its place in the layout while closed (it only fades), and
+  // on desktop it opts back into pointer events. Sitting above the FAB, it
+  // made the assistant impossible to open until this rule was added.
+  const css = fs.readFileSync(path.join(process.cwd(), 'public', 'styles.css'), 'utf8');
+  assert.match(css, /\.assistant-overlay:not\(\.open\) \.assistant-panel \{[^}]*pointer-events: none/);
+  assert.match(css, /\.assistant-overlay \{[^}]*visibility: hidden/s);
+});
+
+test('every assistant chat field carries an id and a name', async () => {
+  // Browsers warn on unnamed form controls, and the widget can be mounted
+  // twice on one page (floating + embedded), so the ids must be unique too.
+  const js = fs.readFileSync(path.join(process.cwd(), 'public', 'assistant-widget.js'), 'utf8');
+  for (const tag of js.match(/<(?:input|textarea|select)\b[^>]*>/g) || []) {
+    assert.ok(/\bid=/.test(tag) && /\bname=/.test(tag), `needs id and name: ${tag}`);
+  }
+  assert.match(js, /const uid = `assistant-\$\{\+\+chatSeq\}`/);
+});

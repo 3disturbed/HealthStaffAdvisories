@@ -475,7 +475,7 @@ async function signoffFlow(id) {
     <p class="hint">Every item needs an active tick — this is the fairness gate, not a formality.</p>
     <form id="checklist-form">
       ${checklist.items.map((i) => `
-        <label class="check-row"><input type="checkbox" data-check="${escAttr(i.code)}"><span>${esc(i.label)}</span></label>`).join('')}
+        <label class="check-row"><input type="checkbox" id="so-check-${escAttr(i.code)}" name="${escAttr(i.code)}" data-check="${escAttr(i.code)}"><span>${esc(i.label)}</span></label>`).join('')}
       <label for="so-rec">Outcome recommendation</label>
       <select id="so-rec">
         <option value="">Choose…</option>

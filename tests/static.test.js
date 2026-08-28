@@ -35,7 +35,7 @@ test('entry documents are never cached, so a new build is always discoverable', 
 });
 
 test('scripts and styles must revalidate before reuse', async () => {
-  for (const asset of ['/common.js', '/escape.js', '/markdown.js', '/faq.js', '/faq-ui.js', '/faq-admin.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
+  for (const asset of ['/common.js', '/escape.js', '/nav-model.js', '/nav-drawer.js', '/markdown.js', '/faq.js', '/faq-ui.js', '/faq-admin.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
     const res = await fetch(base + asset);
     assert.equal(res.status, 200, `${asset} should be served`);
     assert.equal(res.headers.get('cache-control'), 'no-cache', `${asset} should revalidate`);
@@ -103,4 +103,19 @@ test('the FAQ page ships no inline script or handler, so the strict CSP holds', 
   const inline = [...html.matchAll(/<script\b([^>]*)>/g)].filter((m) => !/\ssrc=/.test(m[1]));
   assert.deepEqual(inline, [], 'inline <script> is blocked by the CSP');
   assert.ok(!/\son(click|load|error|focus)\s*=/i.test(html), 'inline event handlers are blocked by the CSP');
+});
+
+test('API responses are never stored, so member data cannot go stale or to disk', async () => {
+  // Includes an authenticated route (401 here) and a public one: the header is
+  // set for the whole /api surface, not per handler.
+  for (const url of ['/api/faq', '/api/membership', '/api/auth/me']) {
+    const res = await fetch(base + url, { headers: { 'x-requested-with': 'fetch' } });
+    assert.equal(res.headers.get('cache-control'), 'no-store', `${url} must not be cached`);
+  }
+});
+
+test('the favicon browsers ask for by default is served, not a 404', async () => {
+  const res = await fetch(`${base}/favicon.ico`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /^image\//);
 });
