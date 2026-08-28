@@ -204,9 +204,10 @@ export function createChatUI(container) {
 // ── floating widget ──────────────────────────────────────────────────────
 
 let mounted = false;
+let toggleWidget = null;
 
 export function mountAssistantWidget() {
-  if (mounted || document.getElementById('assistant-fab')) return;
+  if (mounted) return;
   mounted = true;
 
   const fab = document.createElement('button');
@@ -239,11 +240,20 @@ export function mountAssistantWidget() {
       createChatUI(document.getElementById('assistant-chatholder'));
     }
   }
-  // Lets the bottom tab bar's Assistant tab open the same panel.
-  window.__openAssistant = () => toggle(true);
+  toggleWidget = toggle;
 
   fab.addEventListener('click', () => toggle(true));
   overlay.querySelector('#assistant-close').addEventListener('click', () => toggle(false));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) toggle(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) toggle(false); });
+}
+
+// The other launcher — the bottom tab bar's Assistant tab — is painted by
+// /common.js before this module has finished loading, so it cannot hold a
+// reference to toggle(). It calls openAssistant() there, which loads this
+// module and then calls this. Mounting here as well means the first tap opens
+// the panel even when it lands before mountAssistantWidget() has run.
+export function openAssistantWidget() {
+  mountAssistantWidget();
+  toggleWidget?.(true);
 }

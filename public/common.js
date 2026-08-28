@@ -1,5 +1,5 @@
 // Shared helpers for all pages. No framework — plain browser JS.
-import { ICONS, pop } from '/ui.js';
+import { ICONS, pop, toast } from '/ui.js';
 import { escAttr, safeUrl } from '/escape.js';
 import { can, canUseAssistant, hasAdminSurface } from '/nav-model.js';
 import { mountNavDrawer } from '/nav-drawer.js';
@@ -92,6 +92,35 @@ function setBadges(unread) {
   document.querySelectorAll('[data-alert-badge]').forEach((slot) => {
     slot.innerHTML = unread > 0 ? `<span class="badge-dot">${unread > 9 ? '9+' : unread}</span>` : '';
   });
+}
+
+// ── assistant launcher ───────────────────────────────────────────────────
+// Two launchers open the same panel: the floating button the widget draws
+// itself, and the tab bar's Assistant tab, painted here. The tab is clickable
+// the moment the bar renders, but the widget behind it is a separate module a
+// network round trip away — taps that landed in that window used to be dropped
+// in silence. Routing them through this promise opens the panel as soon as the
+// module lands, and says so when it never does.
+let assistantLoad = null;
+function loadAssistant() {
+  if (!assistantLoad) {
+    assistantLoad = import('/assistant-widget.js').then((m) => {
+      m.mountAssistantWidget();
+      return m;
+    });
+    // A failed load must not leave the button dead for the rest of the
+    // session: forget it so the next click tries again.
+    assistantLoad.catch(() => { assistantLoad = null; });
+  }
+  return assistantLoad;
+}
+
+export async function openAssistant() {
+  try {
+    (await loadAssistant()).openAssistantWidget();
+  } catch {
+    toast('error', 'The assistant could not be loaded. Check your connection and try again.');
+  }
 }
 
 // ── tab bar ──────────────────────────────────────────────────────────────
@@ -206,7 +235,7 @@ function renderTabBar(user) {
   bar.querySelectorAll('.tab-item').forEach((item) =>
     item.addEventListener('click', () => pop(item.querySelector('svg'))));
   bar.querySelectorAll('[data-action="assistant"]').forEach((b) =>
-    b.addEventListener('click', () => window.__openAssistant?.()));
+    b.addEventListener('click', () => openAssistant()));
 
   // Hide the bar while the keyboard is open (mobile).
   document.addEventListener('focusin', (e) => {
@@ -248,10 +277,10 @@ export async function renderNav(activeId) {
   if (user) {
     renderTabBar(user);
     // Floating assistant for accounts holding at least one assistant
-    // permission (the server gates every call regardless).
-    if (canUseAssistant(user)) {
-      import('/assistant-widget.js').then((m) => m.mountAssistantWidget()).catch(() => {});
-    }
+    // permission (the server gates every call regardless). Failure is quiet
+    // here — nobody has asked for the assistant yet; openAssistant() reports it
+    // if and when somebody presses a launcher.
+    if (canUseAssistant(user)) loadAssistant().catch(() => {});
     fetchNotifications().then((n) => setBadges(n.unread));
   }
   return user;

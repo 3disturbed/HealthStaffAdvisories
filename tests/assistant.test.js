@@ -359,3 +359,25 @@ test('every assistant chat field carries an id and a name', async () => {
   }
   assert.match(js, /const uid = `assistant-\$\{\+\+chatSeq\}`/);
 });
+
+test('a launcher pressed before the widget module lands still opens the panel', async () => {
+  // The tab bar's Assistant button is clickable the moment the bar paints, but
+  // the widget behind it arrives a network round trip later. It used to call
+  // window.__openAssistant?.(), so every tap in that window was dropped without
+  // a sound — the reported "Assistant button does nothing".
+  const common = fs.readFileSync(path.join(process.cwd(), 'public', 'common.js'), 'utf8');
+  const widget = fs.readFileSync(path.join(process.cwd(), 'public', 'assistant-widget.js'), 'utf8');
+
+  assert.doesNotMatch(common, /__openAssistant/, 'the launcher must not depend on a global set by a later import');
+  assert.match(common, /\[data-action="assistant"\][\s\S]{0,120}openAssistant\(\)/);
+  // The click awaits the module rather than reading whatever is loaded now.
+  assert.match(common, /export async function openAssistant\(\)[\s\S]{0,240}await loadAssistant\(\)/);
+  assert.match(widget, /export function openAssistantWidget\(\)/);
+});
+
+test('a failed widget load is reported and can be retried', async () => {
+  // Swallowing the import error left the button permanently dead and silent.
+  const common = fs.readFileSync(path.join(process.cwd(), 'public', 'common.js'), 'utf8');
+  assert.match(common, /assistantLoad\.catch\(\(\) => \{ assistantLoad = null; \}\)/);
+  assert.match(common, /catch \{\s*toast\('error'/);
+});
