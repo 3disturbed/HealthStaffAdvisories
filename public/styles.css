@@ -163,6 +163,14 @@ h1 { font-size: var(--fs-xl); letter-spacing: -0.015em; }
    the drawer, so there are no header links to style. */
 .site-header nav { display: flex; gap: 0.35rem; align-items: center; }
 
+/* "Health Staff Advisory" is nearly twice the width of the old wordmark. Below
+   ~340px it, the bell and the hamburger no longer fit on one row, so the header
+   wrapped to two rows and doubled in height. Step the brand down to keep them inline. */
+@media (max-width: 360px) {
+  .site-header { gap: 0.5rem; }
+  .site-header .brand { font-size: 1rem; }
+}
+
 .badge-dot {
   display: inline-block; min-width: 1.2rem; padding: 0 0.3rem; text-align: center;
   background: var(--danger); color: #fff; border-radius: var(--r-full);

@@ -25,7 +25,7 @@ export function sendAdvisorReply(actor, caseId, { kind, content }, opts = {}) {
 
   notifyUser(c.member_id, 'kelly_replied', k === 'action_plan' ? 'Your action plan is ready' : 'Kelly has replied to your case', '', c.id);
   // Neutral subject/body — no case details in email (MVP §10).
-  sendNotificationEmail(c.member_id, 'Kelly Online: there is an update on your case', 'Sign in to Kelly Online to read the update on your case.');
+  sendNotificationEmail(c.member_id, 'Health Staff Advisory: there is an update on your case', 'Sign in to Health Staff Advisory to read the update on your case.');
 
   const meta = opts.via ? { via: opts.via, actionId: opts.actionId } : {};
   audit(actor.id, `case.advisor_${k}`, 'case', c.id, meta);

@@ -10,7 +10,7 @@ const token = new URLSearchParams(window.location.search).get('token') || '';
 
 function bubble(m) {
   const mine = m.authorRole === 'sender';
-  const who = mine ? 'You' : `${esc(m.authorName || 'Kelly Online')} (adviser)`;
+  const who = mine ? 'You' : `${esc(m.authorName || 'Health Staff Advisory')} (adviser)`;
   return `
     <div class="msg ${mine ? 'member' : 'advisor'}">
       <div class="who">${who} &middot; ${esc(fmtDate(m.createdAt))}</div>

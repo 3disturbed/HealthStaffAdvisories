@@ -31,7 +31,7 @@ function showBanner() {
   banner = document.createElement('div');
   banner.className = 'update-banner';
   banner.innerHTML =
-    '<span>A new version of Kelly Online is available.</span> <button class="btn small" type="button" id="update-reload">Refresh now</button>';
+    '<span>A new version of Health Staff Advisory is available.</span> <button class="btn small" type="button" id="update-reload">Refresh now</button>';
   document.body.appendChild(banner);
   document.getElementById('update-reload').addEventListener('click', async () => {
     await purgeCaches();

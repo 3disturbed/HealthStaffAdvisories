@@ -26,11 +26,11 @@ export function installState() {
 }
 
 const BODY = {
-  installed: '<p class="small">✅ Kelly Online is installed on this device. Open it from your home screen or app list.</p>',
+  installed: '<p class="small">✅ Health Staff Advisory is installed on this device. Open it from your home screen or app list.</p>',
   insecure:
     '<p class="small">Installing requires a secure (<strong>https://</strong>) connection. You are viewing this over plain http, so your browser will not offer installation. Use the site’s https address, or open it on <strong>localhost</strong> during development.</p>',
   prompt:
-    '<p class="small muted">Install Kelly Online on this device — it opens full screen from your home screen, with no browser bars.</p>',
+    '<p class="small muted">Install Health Staff Advisory on this device — it opens full screen from your home screen, with no browser bars.</p>',
   ios:
     '<p class="small">On iPhone or iPad, open this page in <strong>Safari</strong>, tap the <strong>Share</strong> button (the square with an arrow), then choose <strong>Add to Home Screen</strong>.</p>',
   'android-menu':
@@ -38,7 +38,7 @@ const BODY = {
   'desktop-menu':
     '<p class="small">Look for the <strong>install icon</strong> (a screen with a downward arrow) at the right-hand end of the address bar, or open the <strong>⋮ menu → Cast, save and share → Install page as app</strong>. If it is not offered yet, browse the site for a few moments and check again.</p>',
   unsupported:
-    '<p class="small">This browser does not support installing web apps. Open Kelly Online in <strong>Chrome</strong>, <strong>Edge</strong> or (on iPhone/iPad) <strong>Safari</strong> to install it.</p>',
+    '<p class="small">This browser does not support installing web apps. Open Health Staff Advisory in <strong>Chrome</strong>, <strong>Edge</strong> or (on iPhone/iPad) <strong>Safari</strong> to install it.</p>',
   generic:
     '<p class="small">Use your browser’s menu and look for <strong>Install app</strong> or <strong>Add to Home Screen</strong>.</p>',
 };
@@ -50,7 +50,7 @@ export function installPanel({ variant = 'card' } = {}) {
     if (state.kind === 'installed') return '';
     if (localStorage.getItem('kelly-install-dismissed')) return '';
   }
-  const heading = state.kind === 'installed' ? 'App installed' : 'Get the Kelly Online app';
+  const heading = state.kind === 'installed' ? 'App installed' : 'Get the Health Staff Advisory app';
   return `
     <div class="card" id="install-card">
       <h3 class="mt0"><img src="/icons/icon-192.png" alt="" width="28" height="28" class="install-icon"> ${esc(heading)}</h3>

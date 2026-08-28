@@ -1,6 +1,6 @@
 {
-  "name": "Kelly Online",
-  "short_name": "Kelly",
+  "name": "Health Staff Advisory",
+  "short_name": "Health Staff",
   "description": "Workplace support for NHS staff — human-led, AI-assisted.",
   "start_url": "/portal.html",
   "scope": "/",

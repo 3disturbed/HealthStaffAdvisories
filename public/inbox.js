@@ -128,7 +128,7 @@ function bubble(m, staff) {
   // "Mine" flips with the reader: to an adviser the advisor bubbles are theirs.
   const mine = staff ? m.authorRole === 'advisor' : m.authorRole === 'sender';
   const who = m.authorRole === 'advisor'
-    ? `${esc(m.authorName || 'Kelly Online')} (adviser)`
+    ? `${esc(m.authorName || 'Health Staff Advisory')} (adviser)`
     : esc(m.authorName || 'Sender');
   return `
     <div class="msg ${mine ? 'member' : 'advisor'}">

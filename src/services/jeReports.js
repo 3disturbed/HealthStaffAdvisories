@@ -379,7 +379,7 @@ export function approveReport(actor, reportId, { edits } = {}) {
     db.prepare(`UPDATE je_reports SET status = 'issued', issued_at = datetime('now'), je_message_id = ? WHERE id = ?`).run(messageId, report.id);
     const review = loaded.review;
     notifyUserJe(review.member_id, 'je_report_ready', 'Your band review report is ready', review.id);
-    sendNotificationEmail(review.member_id, 'Kelly Online: your band review report is ready', 'Sign in to Kelly Online to read your band review report.');
+    sendNotificationEmail(review.member_id, 'Health Staff Advisory: your band review report is ready', 'Sign in to Health Staff Advisory to read your band review report.');
   }
   audit(actor.id, 'je.report_approved', 'je_review', report.review_id, {
     reportId: report.id, audience: report.audience, edited: !!edits && Object.keys(edits).length > 0, messageId,

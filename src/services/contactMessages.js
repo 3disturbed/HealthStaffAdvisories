@@ -315,7 +315,7 @@ function notifySender(t) {
   const token = mintToken(t.id);
   sendEmail(
     t.sender_email,
-    'You have a reply from Kelly Online',
+    'You have a reply from Health Staff Advisory',
     `Hello ${t.sender_name},\n\nAn adviser has replied to your message. Open this link to read it and reply (valid for ${TOKEN_TTL_DAYS} days):\n${config.baseUrl}/thread.html?token=${token}\n\nCreate an account at ${config.baseUrl}/register.html to keep your messages in one place.`
   );
 }

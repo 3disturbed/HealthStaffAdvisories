@@ -295,7 +295,7 @@ export function postMessage(actor, reviewId, { content, kind = 'message', visibi
   if (isAdvisor && !isOwner && vis === 'member') {
     if (k === 'question') db.prepare(`UPDATE je_reviews SET member_editable = 1 WHERE id = ?`).run(review.id);
     notifyUserJe(review.member_id, 'je_question', k === 'question' ? 'Kelly has questions about your band review' : 'Kelly has replied on your band review', review.id);
-    sendNotificationEmail(review.member_id, 'Kelly Online: there is an update on your band review', 'Sign in to Kelly Online to read the update on your band review.');
+    sendNotificationEmail(review.member_id, 'Health Staff Advisory: there is an update on your band review', 'Sign in to Health Staff Advisory to read the update on your band review.');
   } else if (isOwner) {
     for (const advisorId of advisorUserIds()) {
       notifyUserJe(advisorId, 'je_message', `Member replied on band review #${review.id}`, review.id);
@@ -331,7 +331,7 @@ export function submitReview(actor, reviewId) {
 
   for (const advisorId of advisorUserIds()) {
     notifyUserJe(advisorId, 'je_submitted', urgency !== 'normal' ? `Band review #${review.id} needs attention` : `New band review #${review.id}`, review.id);
-    if (urgency !== 'normal') sendNotificationEmail(advisorId, 'Kelly Online: a band review needs attention', 'A band review has triggered urgency rules. Sign in to view it.');
+    if (urgency !== 'normal') sendNotificationEmail(advisorId, 'Health Staff Advisory: a band review needs attention', 'A band review has triggered urgency rules. Sign in to view it.');
   }
   audit(actor.id, 'je.submitted', 'je_review', review.id, { urgency, triggers: signals.triggers.map((t) => t.id) });
   return { ok: true, stage: 'member_submitted', urgency };

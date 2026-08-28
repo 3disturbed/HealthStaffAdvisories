@@ -113,7 +113,7 @@ casesRouter.post('/', requirePermission('cases.own'), (req, res) => {
   if (triggers.length > 0) {
     for (const advisorId of advisorUserIds()) {
       notifyUser(advisorId, 'urgent_case', `Urgent case #${caseId}`, 'A new case has triggered urgency rules.', caseId);
-      sendNotificationEmail(advisorId, 'Kelly Online: a case needs urgent attention', 'An urgent case is waiting in your queue. Sign in to view it.');
+      sendNotificationEmail(advisorId, 'Health Staff Advisory: a case needs urgent attention', 'An urgent case is waiting in your queue. Sign in to view it.');
     }
   }
 

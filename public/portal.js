@@ -371,7 +371,7 @@ async function renderCase(id, { silent = false } = {}) {
     lastDay = day;
     return `${divider}
       <div class="msg ${m.author_user_id === user.id ? 'member' : 'advisor'}${m.kind === 'question' ? ' question-msg' : ''}">
-        <div class="who">${esc(m.author_name || 'Kelly Online')} · ${esc(fmtDate(m.created_at))}${m.kind === 'action_plan' ? ' · <strong>Action plan</strong>' : ''}${m.kind === 'question' ? ' · <strong>Kelly asked you</strong>' : ''}${m.kind === 'evidence' ? ' · <strong>📎 Evidence</strong>' : ''}</div>
+        <div class="who">${esc(m.author_name || 'Health Staff Advisory')} · ${esc(fmtDate(m.created_at))}${m.kind === 'action_plan' ? ' · <strong>Action plan</strong>' : ''}${m.kind === 'question' ? ' · <strong>Kelly asked you</strong>' : ''}${m.kind === 'evidence' ? ' · <strong>📎 Evidence</strong>' : ''}</div>
         <div class="body">${esc(m.content)}</div>
         ${m.attachments?.length ? `<ul class="small">${m.attachments.map((a) => `<li><a href="/api/documents/${a.id}/download">${esc(a.filename)}</a></li>`).join('')}</ul>` : ''}
       </div>`;

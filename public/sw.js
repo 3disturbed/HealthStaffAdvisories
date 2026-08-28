@@ -24,9 +24,9 @@ self.addEventListener('message', (event) => {
 });
 
 const OFFLINE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline — Kelly Online</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline — Health Staff Advisory</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f4f7fa;color:#1a2733;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:1rem;text-align:center}</style>
-</head><body><div><h1>You're offline</h1><p>Kelly Online needs a connection to keep your case data safe and current.<br>Reconnect and try again.</p></div></body></html>`;
+</head><body><div><h1>You're offline</h1><p>Health Staff Advisory needs a connection to keep your case data safe and current.<br>Reconnect and try again.</p></div></body></html>`;
 
 self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {

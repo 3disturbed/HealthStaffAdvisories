@@ -65,7 +65,7 @@ authRouter.post('/register', rateLimit({ keyPrefix: 'register', max: 10 }), (req
   const token = issueEmailToken(userId, 'verify', 48);
   sendEmail(
     email,
-    'Confirm your Kelly Online account',
+    'Confirm your Health Staff Advisory account',
     `Hello ${displayName},\n\nConfirm your account by opening this link:\n${config.baseUrl}/verify.html?token=${token}\n\nIf you did not create this account, ignore this email.`
   );
   audit(userId, 'user.registered', 'user', userId);
@@ -118,7 +118,7 @@ authRouter.post('/request-reset', rateLimit({ keyPrefix: 'reset', max: 10 }), (r
     const token = issueEmailToken(user.id, 'reset', 2);
     sendEmail(
       email,
-      'Reset your Kelly Online access',
+      'Reset your Health Staff Advisory access',
       `Reset your password by opening this link (valid for 2 hours):\n${config.baseUrl}/reset.html?token=${token}\n\nIf you did not request this, ignore this email.`
     );
     audit(user.id, 'auth.reset_requested', 'user', user.id);

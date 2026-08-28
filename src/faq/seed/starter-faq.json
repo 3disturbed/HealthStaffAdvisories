@@ -3,14 +3,14 @@
     {
       "slug": "getting-started",
       "name": "Getting started",
-      "description": "What Kelly Online is and what happens when you ask for help.",
+      "description": "What Health Staff Advisory is and what happens when you ask for help.",
       "seq": 10,
       "visibility": "public",
       "questions": [
         {
           "slug": "what-is-kelly-online",
-          "question": "What is Kelly Online?",
-          "answer": "Kelly Online is an employment support service for NHS staff. You explain a workplace issue in ordinary language and upload any documents you have.\n\nAI prepares a plain-English summary of your situation and organises your evidence. **Kelly, a human adviser, then reviews that preparation** and writes back to you.\n\nThe AI never replaces Kelly and never sends you an answer on its own.",
+          "question": "What is Health Staff Advisory?",
+          "answer": "Health Staff Advisory is an employment support service for NHS staff. You explain a workplace issue in ordinary language and upload any documents you have.\n\nAI prepares a plain-English summary of your situation and organises your evidence. **Kelly, a human adviser, then reviews that preparation** and writes back to you.\n\nThe AI never replaces Kelly and never sends you an answer on its own.",
           "keywords": "about, what is this, service, how it works",
           "visibility": "public"
         },
