@@ -123,7 +123,11 @@ test('admin grants advisor role to member B; B gains queue access', async () => 
   assert.equal(grant.status, 200);
   const queue = await memberB('/api/advisor/queue');
   assert.equal(queue.status, 200);
-  assert.ok(queue.data.cases.some((c) => c.id === caseId));
+  const card = queue.data.cases.find((c) => c.id === caseId);
+  assert.ok(card);
+  // Queue cards expose who spoke last, powering the "member replied" bucket.
+  assert.equal(card.lastMessageBy, 'member');
+  assert.ok(card.lastMessageAt);
 });
 
 test('advisor B can open the case; advisor reply reaches member A only as member-visible', async () => {

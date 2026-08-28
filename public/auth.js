@@ -4,7 +4,26 @@ renderNav('');
 const msg = el('msg');
 const params = new URLSearchParams(window.location.search);
 
+// A visitor heading somewhere specific (e.g. straight into Start-a-case)
+// keeps that destination through register → verify → sign in on this device.
+const NEXT_RE = /^\/portal\.html(#.*)?$/;
+const nextParam = params.get('next');
+if (nextParam && NEXT_RE.test(nextParam)) {
+  try { sessionStorage.setItem('kelly-next', nextParam); } catch { /* private mode */ }
+}
+function storedNext() {
+  try { return sessionStorage.getItem('kelly-next'); } catch { return null; }
+}
+function clearNext() {
+  try { sessionStorage.removeItem('kelly-next'); } catch { /* ignore */ }
+}
+
 function landingFor(user) {
+  const next = storedNext();
+  if (next && NEXT_RE.test(next) && can(user, 'cases.own')) {
+    clearNext();
+    return next;
+  }
   if (can(user, 'cases.review')) return '/advisor.html';
   if (can(user, 'users.manage') || can(user, 'system.admin')) return '/admin.html';
   return '/portal.html';

@@ -78,6 +78,7 @@ npm test        # run the test suite
 | [docs/KELLY-OPS.md](docs/KELLY-OPS.md) | How Kelly actually works inside the system: daily triage order, statuses, urgency levels, response structure, corrections. |
 | [docs/LAUNCH-CHECKLIST.md](docs/LAUNCH-CHECKLIST.md) | Production/pilot readiness checklist: product, safety, privacy, security, AI, knowledge base, operations and go/no-go. |
 | [docs/AGENTS.md](docs/AGENTS.md) | Rules for coding agents and contributors: non-negotiables, change workflows, forbidden shortcuts. |
+| [docs/UX-STORIES.md](docs/UX-STORIES.md) | The mobile-app experience: design principles, personas, per-role user stories, navigation spec and journey mapping. |
 
 ## Explicitly NOT required for first launch
 

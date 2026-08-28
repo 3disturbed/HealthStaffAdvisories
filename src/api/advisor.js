@@ -21,6 +21,8 @@ function caseCard(c) {
     nextImportantAt: c.next_important_at,
     createdAt: c.created_at, updatedAt: c.updated_at,
     openEscalations: c.open_escalations,
+    lastMessageBy: c.last_message_by || null,
+    lastMessageAt: c.last_message_at || null,
   };
 }
 
@@ -39,7 +41,12 @@ advisorRouter.get('/queue', requirePermission('cases.review'), (req, res) => {
   const rows = db
     .prepare(
       `SELECT c.*, u.display_name AS member_name,
-        (SELECT COUNT(*) FROM escalations e WHERE e.case_id = c.id AND e.resolved_at IS NULL) AS open_escalations
+        (SELECT COUNT(*) FROM escalations e WHERE e.case_id = c.id AND e.resolved_at IS NULL) AS open_escalations,
+        (SELECT CASE WHEN m.author_user_id = c.member_id THEN 'member' ELSE 'advisor' END
+           FROM case_messages m WHERE m.case_id = c.id AND m.visibility = 'member'
+           ORDER BY m.id DESC LIMIT 1) AS last_message_by,
+        (SELECT m.created_at FROM case_messages m WHERE m.case_id = c.id AND m.visibility = 'member'
+           ORDER BY m.id DESC LIMIT 1) AS last_message_at
        FROM cases c JOIN users u ON u.id = c.member_id
        WHERE ${where}
        ORDER BY
