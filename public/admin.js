@@ -1,4 +1,4 @@
-import { api, esc, escAttr, safeUrl, fmtDate, requireUser, can } from '/common.js';
+import { api, esc, escAttr, safeUrl, fmtDate, requireUser, can, loadAssistant } from '/common.js';
 import { adminSections, hasAdminSurface, canUseAssistant } from '/nav-model.js';
 import { enterView, stagger, toast, setBusy, countUp, skelTable, emptyState } from '/ui.js';
 
@@ -340,7 +340,7 @@ async function renderAssistant() {
     <div class="assistant-embed" id="assistant-embed"></div>`;
   enterView(view);
   wireTabs();
-  const { createChatUI } = await import('/assistant-widget.js');
+  const { createChatUI } = await loadAssistant();
   createChatUI(document.getElementById('assistant-embed'));
 }
 

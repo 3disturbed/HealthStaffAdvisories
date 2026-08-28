@@ -102,9 +102,27 @@ function setBadges(unread) {
 // in silence. Routing them through this promise opens the panel as soon as the
 // module lands, and says so when it never does.
 let assistantLoad = null;
-function loadAssistant() {
+export function loadAssistant() {
   if (!assistantLoad) {
-    assistantLoad = import('/assistant-widget.js');
+    assistantLoad = (async () => {
+      // A browser that fetched the widget while it carried a long max-age
+      // keeps that copy for the full week: purgeCaches() cannot touch the
+      // HTTP cache, and a reload never revalidates a lazy import. A changed
+      // query string is a different cache entry, so it always reaches the
+      // network. Once one heal has worked, keep using that URL — the entry
+      // it fetched was stored under today's revalidate-always headers.
+      let bust = null;
+      try { bust = localStorage.getItem('hsa-widget-bust'); } catch { /* storage may be blocked */ }
+      let mod = await import(bust ? `/assistant-widget.js?${bust}` : '/assistant-widget.js');
+      if (typeof mod.openAssistantWidget !== 'function') {
+        const fresh = `bust=${Date.now()}`;
+        mod = await import(`/assistant-widget.js?${fresh}`);
+        if (typeof mod.openAssistantWidget === 'function') {
+          try { localStorage.setItem('hsa-widget-bust', fresh); } catch { /* fine, heal again next time */ }
+        }
+      }
+      return mod;
+    })();
     // A failed load must not leave the button dead for the rest of the
     // session: forget it so the next click tries again.
     assistantLoad.catch(() => { assistantLoad = null; });
