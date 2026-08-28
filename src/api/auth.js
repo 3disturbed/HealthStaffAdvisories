@@ -102,8 +102,10 @@ authRouter.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-authRouter.get('/me', requireAuth, (req, res) => {
-  res.json({ user: publicUser(req.user) });
+// 200 with user:null when signed out — every page probes this to build its
+// nav, and a 401 would log console noise on each anonymous visit.
+authRouter.get('/me', (req, res) => {
+  res.json({ user: req.user ? publicUser(req.user) : null });
 });
 
 authRouter.post('/request-reset', rateLimit({ keyPrefix: 'reset', max: 10 }), (req, res) => {

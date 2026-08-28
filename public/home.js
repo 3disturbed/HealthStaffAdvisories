@@ -1,6 +1,27 @@
 import { renderNav } from '/common.js';
 import { ICONS, REDUCED } from '/ui.js';
 
+// Reveal wiring runs FIRST and synchronously — page text must never wait on
+// the network (nav/auth). styles.css also carries a failsafe animation that
+// reveals everything ~1.8s in if this script never executes at all.
+let observe = (els) => els.forEach((el) => el.classList.add('revealed'));
+if (!REDUCED.matches && 'IntersectionObserver' in window) {
+  let siblingIndex = 0;
+  let lastParent = null;
+  const io = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const el = entry.target;
+      if (el.parentElement !== lastParent) { siblingIndex = 0; lastParent = el.parentElement; }
+      el.style.setProperty('--stagger-i', siblingIndex++);
+      el.classList.add('revealed');
+      io.unobserve(el);
+    }
+  }, { threshold: 0.15 });
+  observe = (els) => els.forEach((el) => io.observe(el));
+}
+observe([...document.querySelectorAll('.reveal')]);
+
 const user = await renderNav('home');
 
 // Sticky CTA bar for signed-out visitors (mobile).
@@ -10,7 +31,7 @@ if (ctaBar && !user) {
   document.body.classList.add('has-ctabar');
 }
 
-// Trust-signals band above the footer.
+// Trust-signals band above the footer (injected, so observed afterwards).
 const trustBand = document.getElementById('trust-band');
 if (trustBand) {
   trustBand.innerHTML = [
@@ -19,26 +40,5 @@ if (trustBand) {
     [ICONS.chat, 'AI assistance is always labelled and source-backed'],
     [ICONS.bell, 'Urgent situations are escalated by fixed safety rules'],
   ].map(([icon, text]) => `<div class="trust-item reveal">${icon}<span>${text}</span></div>`).join('');
-}
-
-// Scroll reveal (progressive enhancement; content visible without JS).
-const revealables = [...document.querySelectorAll('.reveal')];
-if (revealables.length) {
-  if (REDUCED.matches || !('IntersectionObserver' in window)) {
-    revealables.forEach((el) => el.classList.add('revealed'));
-  } else {
-    let siblingIndex = 0;
-    let lastParent = null;
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const el = entry.target;
-        if (el.parentElement !== lastParent) { siblingIndex = 0; lastParent = el.parentElement; }
-        el.style.setProperty('--stagger-i', siblingIndex++);
-        el.classList.add('revealed');
-        observer.unobserve(el);
-      }
-    }, { threshold: 0.15 });
-    revealables.forEach((el) => observer.observe(el));
-  }
+  observe([...trustBand.querySelectorAll('.reveal')]);
 }

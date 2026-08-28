@@ -684,10 +684,19 @@ body.has-tabbar .assistant-fab { bottom: calc(var(--tabbar-h) + 1rem + env(safe-
 .anim-rise { animation: rise var(--t-base) var(--ease-out) both; animation-delay: calc(var(--stagger-i, 0) * 40ms); }
 .anim-msg-in { animation: msg-in var(--t-quick) var(--ease-out); }
 
-/* Landing scroll reveal — hidden state only when JS is present */
-html.js .reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out); transition-delay: calc(var(--stagger-i, 0) * 80ms); }
-html.js .reveal.revealed { opacity: 1; transform: translateY(0); }
-@media (prefers-reduced-motion: reduce) { html.js .reveal { opacity: 1; transform: none; } }
+/* Landing scroll reveal — hidden state only when JS is present.
+   FAILSAFE: the animation force-reveals everything ~1.8s in, so content can
+   never stay hidden if the module that drives the observer stalls or errors.
+   The normal path adds .revealed first, which cancels the failsafe. */
+@keyframes reveal-failsafe { to { opacity: 1; transform: none; } }
+html.js .reveal {
+  opacity: 0; transform: translateY(16px);
+  transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out);
+  transition-delay: calc(var(--stagger-i, 0) * 80ms);
+  animation: reveal-failsafe var(--t-slow) var(--ease-out) 1.8s forwards;
+}
+html.js .reveal.revealed { opacity: 1; transform: translateY(0); animation: none; }
+@media (prefers-reduced-motion: reduce) { html.js .reveal { opacity: 1; transform: none; animation: none; } }
 
 /* ═══════════════════════ PAGES ═══════════════════════ */
 .site-footer { color: var(--ink-muted); font-size: var(--fs-sm); padding: var(--sp-6) var(--sp-4); text-align: center; }
