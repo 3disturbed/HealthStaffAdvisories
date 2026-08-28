@@ -52,9 +52,11 @@ membershipRouter.post('/checkout', requireAuth, rateLimit({ keyPrefix: 'checkout
 
     if (quote.autoApply) {
       // Below the card minimum — apply immediately, ledger records 0p.
+      // `autoApplied` is what makes that true: without it the frozen quote
+      // overwrites the amount and the ledger books uncollected revenue.
       const applied = applyPurchase({
         userId: req.user.id, tierId: tier.id, kind: quote.kind, quoteId: quote.quoteId,
-        amountPence: 0, currency: tier.currency,
+        amountPence: 0, currency: tier.currency, autoApplied: true,
       });
       if (applied.error) return res.status(applied.status || 400).json({ error: applied.error });
       return res.json({ applied: true });
@@ -72,7 +74,7 @@ membershipRouter.post('/checkout', requireAuth, rateLimit({ keyPrefix: 'checkout
         price_data: {
           currency: tier.currency,
           unit_amount: quote.amountPence,
-          product_data: { name: `Kelly Online ${tier.name} membership` },
+          product_data: { name: `Health Staff Advisory ${tier.name} membership` },
         },
       }],
       metadata: {

@@ -279,3 +279,55 @@ test('stale running jobs are recovered by the worker', async () => {
   assert.equal(job.status, 'queued');
   assert.equal(job.attempts, 1);
 });
+
+// ── Phase 0: ledger correctness ──────────────────────────────────────────
+// The sub-30p auto-apply path takes no money, so the ledger must record 0p.
+// Before the fix, applyPurchase overwrote the caller's `amountPence: 0` with
+// the frozen quote amount, booking revenue that was never collected.
+
+test('auto-apply books ZERO, not the quote amount — no money changed hands', () => {
+  const u = makeMember('autoapply@example.com', 90);
+  giveSubscription(u, 'standard', '2026-08-01 00:00:00', '2026-09-01 00:00:00');
+  payment(u, 799);
+  aiRuns(u, 6);
+  const now = new Date('2026-08-31T18:00:00Z');
+
+  const q = createQuote(u, 'plus', now);
+  assert.equal(q.autoApply, true, 'precondition: this quote is below the card minimum');
+  assert.ok(q.amountPence > 0 && q.amountPence < 30, 'precondition: a small non-zero quote');
+
+  const before = db.prepare('SELECT COALESCE(SUM(amount_pence), 0) AS n FROM payments WHERE user_id = ?').get(u).n;
+  const applied = applyPurchase(
+    { userId: u, tierId: 'plus', kind: q.kind, quoteId: q.quoteId, amountPence: 0, currency: 'gbp', autoApplied: true },
+    now
+  );
+  assert.ok(applied.ok, JSON.stringify(applied));
+
+  const row = db.prepare('SELECT * FROM payments WHERE id = ?').get(applied.paymentId);
+  assert.equal(row.amount_pence, 0, 'the ledger must not book money that was never charged');
+  assert.equal(row.kind, 'upgrade', 'still an upgrade — a purchase discounted to zero, not a comp');
+
+  const after = db.prepare('SELECT COALESCE(SUM(amount_pence), 0) AS n FROM payments WHERE user_id = ?').get(u).n;
+  assert.equal(after, before, 'lifetime paid is unchanged');
+
+  // The row explains itself: the breakdown records why it is zero.
+  assert.equal(JSON.parse(row.quote_json).autoApplied, true);
+  // The entitlement still applied — the member got what they asked for.
+  assert.equal(currentSubscription(u, now).tier.id, 'plus');
+});
+
+test('a normal upgrade still honours the frozen quote (guards against over-fixing)', () => {
+  const u = makeMember('frozenquote@example.com', 90);
+  giveSubscription(u, 'standard', '2026-08-01 00:00:00', '2026-09-01 00:00:00');
+  const now = new Date('2026-08-15T00:00:00Z');
+  const q = createQuote(u, 'plus', now);
+  assert.equal(q.autoApply, false);
+
+  // Stripe reports a different number; the frozen quote must still win.
+  const applied = applyPurchase(
+    { userId: u, tierId: 'plus', kind: q.kind, quoteId: q.quoteId, amountPence: 99999, stripeSessionId: 'cs_frozen_1' },
+    now
+  );
+  const row = db.prepare('SELECT * FROM payments WHERE id = ?').get(applied.paymentId);
+  assert.equal(row.amount_pence, q.amountPence, 'the frozen quote overrides what Stripe reports');
+});

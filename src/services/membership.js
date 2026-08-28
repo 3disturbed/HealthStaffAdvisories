@@ -226,7 +226,11 @@ export function createQuote(userId, targetTierId, now = new Date()) {
 
 // ── fulfilment (idempotent — the webhook and tests both call this) ───────
 
-export function applyPurchase({ userId, tierId, kind, quoteId, stripeSessionId = null, paymentIntentId = '', amountPence, currency = 'gbp' }, now = new Date()) {
+// `autoApplied` means no card was charged (the balance was under the Stripe
+// minimum). The frozen quote still governs period/kind/tier — it must keep
+// overriding what STRIPE reports — but it must not override the caller stating
+// that no money changed hands, or the ledger books revenue never collected.
+export function applyPurchase({ userId, tierId, kind, quoteId, stripeSessionId = null, paymentIntentId = '', amountPence, currency = 'gbp', autoApplied = false }, now = new Date()) {
   if (stripeSessionId) {
     const existing = db.prepare('SELECT id FROM payments WHERE stripe_session_id = ?').get(stripeSessionId);
     if (existing) return { ok: true, already: true, paymentId: existing.id };
@@ -240,9 +244,16 @@ export function applyPurchase({ userId, tierId, kind, quoteId, stripeSessionId =
   let finalKind = kind;
   let finalTier = tierId;
   let finalAmount = amountPence;
+  let breakdownJson = quote ? quote.breakdown_json : null;
   if (quote) {
     ({ period_start: periodStart, period_end: periodEnd, kind: finalKind, tier_id: finalTier } = quote);
-    finalAmount = quote.amount_pence;
+    finalAmount = autoApplied ? 0 : quote.amount_pence;
+    if (autoApplied) {
+      // Make the £0 row self-explaining rather than an unexplained anomaly.
+      let b = {};
+      try { b = JSON.parse(quote.breakdown_json); } catch { /* malformed breakdown */ }
+      breakdownJson = JSON.stringify({ ...b, autoApplied: true, quotedPence: quote.amount_pence });
+    }
     db.prepare(`UPDATE membership_quotes SET status = 'paid' WHERE id = ?`).run(quote.id);
   } else {
     // Money was taken but the quote is missing/expired — fulfil from
@@ -259,7 +270,7 @@ export function applyPurchase({ userId, tierId, kind, quoteId, stripeSessionId =
               stripe_session_id, stripe_payment_intent, quote_json)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(userId, finalAmount, currency, finalKind, finalTier, periodStart, periodEnd,
-      stripeSessionId, paymentIntentId, quote ? quote.breakdown_json : null);
+      stripeSessionId, paymentIntentId, breakdownJson);
 
   const active = db
     .prepare(`SELECT * FROM subscriptions WHERE user_id = ? AND status = 'active' AND period_end > ? ORDER BY id DESC LIMIT 1`)
@@ -275,6 +286,45 @@ export function applyPurchase({ userId, tierId, kind, quoteId, stripeSessionId =
   audit(userId, 'payment.applied', 'payment', info.lastInsertRowid, { kind: finalKind, tierId: finalTier, amountPence: finalAmount });
   notifyUser(userId, 'membership', `Your ${tier.name} membership is active`, 'Thank you — your membership has been updated.');
   return { ok: true, paymentId: info.lastInsertRowid };
+}
+
+// ── refunds ──────────────────────────────────────────────────────────────
+// A refund is a negative row against the same member, so SUM(amount_pence)
+// stays net paid (see the `payments` schema comment). Idempotent per Stripe
+// refund id: Stripe retries every event, and re-fires charge.refunded on each
+// subsequent partial refund.
+export function recordRefund({ parentPaymentId, refundGrossPence, stripeRefundId = null, recordedBy = null }) {
+  if (stripeRefundId) {
+    const existing = db.prepare('SELECT id FROM payments WHERE stripe_session_id = ?').get(stripeRefundId);
+    if (existing) return { ok: true, already: true, paymentId: existing.id };
+  }
+  const parent = db.prepare('SELECT * FROM payments WHERE id = ?').get(Number(parentPaymentId));
+  if (!parent) return { error: 'Original payment not found.', status: 404 };
+
+  const amount = -Math.abs(Number(refundGrossPence));
+  if (!Number.isInteger(amount) || amount === 0) return { error: 'Refund amount must be a non-zero number of pence.', status: 400 };
+
+  const info = db
+    .prepare(`INSERT INTO payments (user_id, amount_pence, currency, kind, tier_id, period_start, period_end,
+              stripe_session_id, stripe_payment_intent, quote_json, recorded_by)
+              VALUES (?, ?, ?, 'refund', ?, ?, ?, ?, ?, ?, ?)`)
+    .run(parent.user_id, amount, parent.currency, parent.tier_id, parent.period_start, parent.period_end,
+      stripeRefundId, parent.stripe_payment_intent, JSON.stringify({ refundOfPaymentId: parent.id }), recordedBy);
+
+  audit(recordedBy, 'payment.refunded', 'payment', info.lastInsertRowid, {
+    refundOfPaymentId: parent.id, amountPence: amount, stripeRefundId,
+  });
+  notifyUser(parent.user_id, 'membership', 'A refund has been issued', 'Your payment has been refunded.');
+  return { ok: true, paymentId: info.lastInsertRowid };
+}
+
+// Locate the ledger row a Stripe refund belongs to. The original is the
+// earliest positive row for that payment intent.
+export function findPaymentByIntent(paymentIntentId) {
+  if (!paymentIntentId) return null;
+  return db
+    .prepare('SELECT * FROM payments WHERE stripe_payment_intent = ? AND amount_pence > 0 ORDER BY id LIMIT 1')
+    .get(String(paymentIntentId)) || null;
 }
 
 export function recordComp(actor, userId, { tierId, months = 1, note = '' }) {
