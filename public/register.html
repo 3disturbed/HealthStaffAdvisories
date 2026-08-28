@@ -24,6 +24,25 @@
       <form id="register-form">
         <label for="displayName">What should we call you?</label>
         <input id="displayName" name="displayName" type="text" autocomplete="name" required>
+        <label for="payBand">Your NHS pay band</label>
+        <p class="hint">Used to keep membership pricing fair across bands — never shown to other members.</p>
+        <select id="payBand" name="payBand" required>
+          <option value="" disabled selected>Choose your band…</option>
+          <option value="band_2">NHS AfC Band 2</option>
+          <option value="band_3">NHS AfC Band 3</option>
+          <option value="band_4">NHS AfC Band 4</option>
+          <option value="band_5">NHS AfC Band 5</option>
+          <option value="band_6">NHS AfC Band 6</option>
+          <option value="band_7">NHS AfC Band 7</option>
+          <option value="band_8a">NHS AfC Band 8a</option>
+          <option value="band_8b">NHS AfC Band 8b</option>
+          <option value="band_8c">NHS AfC Band 8c</option>
+          <option value="band_8d">NHS AfC Band 8d</option>
+          <option value="band_9">NHS AfC Band 9</option>
+          <option value="medical_dental">Medical / Dental</option>
+          <option value="student_apprentice">Student / Apprentice</option>
+          <option value="other">Other / prefer to self-describe</option>
+        </select>
         <label for="email">Email address</label>
         <input id="email" name="email" type="email" autocomplete="email" required>
         <label for="password">Password</label>

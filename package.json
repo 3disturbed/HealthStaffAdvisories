@@ -17,6 +17,7 @@
     "mammoth": "^1.8.0",
     "multer": "^2.0.1",
     "openai": "^7.7.0",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "stripe": "^22.6.0"
   }
 }

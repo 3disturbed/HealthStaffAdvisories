@@ -60,6 +60,12 @@ const MIGRATIONS = [
    CREATE INDEX IF NOT EXISTS idx_ai_case ON ai_outputs(case_id);
    CREATE INDEX IF NOT EXISTS idx_ai_je ON ai_outputs(je_review_id, je_stage);
    ALTER TABLE notifications ADD COLUMN je_review_id INTEGER REFERENCES je_reviews(id) ON DELETE CASCADE;`,
+  // v4 — membership: structured NHS pay band on accounts; AI runs attributed
+  // to the member whose allowance they consume. Index lives here (not
+  // schema.sql) because on a fresh DB schema runs before this column exists.
+  `ALTER TABLE users ADD COLUMN pay_band TEXT NOT NULL DEFAULT '';
+   ALTER TABLE ai_outputs ADD COLUMN billed_user_id INTEGER;
+   CREATE INDEX IF NOT EXISTS idx_ai_outputs_billed ON ai_outputs(billed_user_id, created_at);`,
 ];
 {
   let version = db.prepare('PRAGMA user_version').get().user_version;
@@ -91,6 +97,14 @@ export function setSetting(key, value) {
   db.prepare(
     'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
   ).run(key, String(value));
+}
+
+// Seed the three membership tiers. INSERT OR IGNORE: admin edits survive.
+export function seedMembershipTiers() {
+  db.exec(`INSERT OR IGNORE INTO membership_tiers (id, name, price_pence, ai_daily_allowance, rank) VALUES
+    ('pilot', 'Pilot', 0, 3, 0),
+    ('standard', 'Standard', 799, 6, 1),
+    ('plus', 'Plus', 1499, 15, 2)`);
 }
 
 // Seed the main administration account on first run.

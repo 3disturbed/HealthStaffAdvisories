@@ -7,6 +7,7 @@ import { rolesForUser, permissionsForUser } from '../rbac/permissions.js';
 import { sendEmail } from '../notify/mailer.js';
 import { audit } from '../audit/log.js';
 import { config } from '../config.js';
+import { PAY_BANDS } from '../services/membership.js';
 
 export const authRouter = Router();
 
@@ -46,16 +47,18 @@ authRouter.post('/register', rateLimit({ keyPrefix: 'register', max: 10 }), (req
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   const displayName = String(req.body.displayName || '').trim().slice(0, 80);
+  const payBand = String(req.body.payBand || '');
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
   if (password.length < 10) return res.status(400).json({ error: 'Password must be at least 10 characters.' });
   if (!displayName) return res.status(400).json({ error: 'Please tell us what to call you.' });
+  if (!(payBand in PAY_BANDS)) return res.status(400).json({ error: 'Please choose your NHS pay band.' });
 
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
 
   const info = db
-    .prepare(`INSERT INTO users (email, password_hash, display_name, status) VALUES (?, ?, ?, 'pending')`)
-    .run(email, hashPassword(password), displayName);
+    .prepare(`INSERT INTO users (email, password_hash, display_name, status, pay_band) VALUES (?, ?, ?, 'pending', ?)`)
+    .run(email, hashPassword(password), displayName, payBand);
   const userId = info.lastInsertRowid;
   db.prepare('INSERT INTO user_roles (user_id, role) VALUES (?, ?)').run(userId, 'member');
 

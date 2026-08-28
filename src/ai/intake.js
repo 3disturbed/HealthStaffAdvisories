@@ -56,7 +56,9 @@ function validateIntake(raw, providedChunkIds) {
 // Run AI intake for a case. Async; callers fire-and-forget — a failure must
 // never block the case itself. Returns the stored output id, or null when AI
 // is disabled/unconfigured.
-export async function runIntake(caseId, task = 'intake') {
+// billedUserId attributes the run to a member's AI allowance (null = an
+// advisor-triggered or system run: bypasses and never counts).
+export async function runIntake(caseId, task = 'intake', { billedUserId = null } = {}) {
   if (!aiEnabled()) return null;
 
   const c = db.prepare('SELECT * FROM cases WHERE id = ?').get(caseId);
@@ -94,10 +96,10 @@ export async function runIntake(caseId, task = 'intake') {
 
     const info = db
       .prepare(
-        `INSERT INTO ai_outputs (case_id, task, provider, model, prompt_version, status, output_json)
-         VALUES (?, ?, 'openai', ?, ?, 'ok', ?)`
+        `INSERT INTO ai_outputs (case_id, billed_user_id, task, provider, model, prompt_version, status, output_json)
+         VALUES (?, ?, ?, 'openai', ?, ?, 'ok', ?)`
       )
-      .run(caseId, task, model, INTAKE_PROMPT_VERSION, JSON.stringify({
+      .run(caseId, billedUserId, task, model, INTAKE_PROMPT_VERSION, JSON.stringify({
         ...validated,
         sources: chunks.map((k) => ({
           chunkId: k.chunk_id, title: k.title, publisher: k.publisher,
@@ -125,9 +127,9 @@ export async function runIntake(caseId, task = 'intake') {
     audit(null, 'ai.intake_completed', 'case', caseId, { model, promptVersion: INTAKE_PROMPT_VERSION, citations: validated.citations.length });
   } catch (err) {
     db.prepare(
-      `INSERT INTO ai_outputs (case_id, task, provider, model, prompt_version, status, output_json)
-       VALUES (?, ?, 'openai', ?, ?, 'failed', ?)`
-    ).run(caseId, task, model, INTAKE_PROMPT_VERSION, JSON.stringify({ error: err.message.slice(0, 300) }));
+      `INSERT INTO ai_outputs (case_id, billed_user_id, task, provider, model, prompt_version, status, output_json)
+       VALUES (?, ?, ?, 'openai', ?, ?, 'failed', ?)`
+    ).run(caseId, billedUserId, task, model, INTAKE_PROMPT_VERSION, JSON.stringify({ error: err.message.slice(0, 300) }));
     audit(null, 'ai.intake_failed', 'case', caseId, { model });
     throw err;
   }

@@ -73,7 +73,7 @@ advisorRouter.get('/queue', requirePermission('cases.review'), (req, res) => {
 advisorRouter.get('/cases/:id', requirePermission('cases.review'), (req, res) => {
   const c = db
     .prepare(
-      `SELECT c.*, u.display_name AS member_name, u.email AS member_email, u.created_at AS member_since
+      `SELECT c.*, u.display_name AS member_name, u.email AS member_email, u.created_at AS member_since, u.pay_band AS member_pay_band
        FROM cases c JOIN users u ON u.id = c.member_id WHERE c.id = ?`
     )
     .get(Number(req.params.id));
@@ -130,7 +130,7 @@ advisorRouter.get('/cases/:id', requirePermission('cases.review'), (req, res) =>
     case: { ...caseCard({ ...c, open_escalations: escalations.filter((e) => !e.resolved_at).length }),
       whatHappened: c.what_happened, staffGroup: c.staff_group, formalStage: c.formal_stage,
       meetingOrDeadline: c.meeting_or_deadline, desiredOutcome: c.desired_outcome,
-      memberEmail: c.member_email, memberSince: c.member_since, closedAt: c.closed_at },
+      memberEmail: c.member_email, memberSince: c.member_since, memberPayBand: c.member_pay_band || '', closedAt: c.closed_at },
     messages, timeline, documents, escalations, ai, aiEnabled: aiEnabled(),
   });
 });

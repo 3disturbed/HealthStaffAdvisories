@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { BUILD_VERSION } from './version.js';
 import { seedAdmin } from './db/connection.js';
 import { seedJeRuleset } from './je/reference.js';
+import { seedFaq } from './faq/seed.js';
 import { attachUser, csrfGuard } from './auth/middleware.js';
 import { authRouter } from './api/auth.js';
 import { casesRouter } from './api/cases.js';
@@ -15,10 +16,19 @@ import { knowledgeRouter } from './api/knowledge.js';
 import { notificationsRouter } from './api/notifications.js';
 import { accountRouter } from './api/account.js';
 import { jeRouter } from './api/je.js';
+import { membershipRouter } from './api/membership.js';
+import { stripeWebhookHandler } from './api/stripeWebhook.js';
+import { seedMembershipTiers } from './db/connection.js';
+import { processAiQueue } from './services/aiQueue.js';
+import { faqRouter } from './api/faq.js';
 
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+
+// Stripe webhook FIRST: signature verification needs the raw body (before
+// express.json) and Stripe cannot send our CSRF header (before csrfGuard).
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 app.use(express.json({ limit: '256kb' }));
 app.use(attachUser);
@@ -59,9 +69,11 @@ app.use('/api/advisor', advisorRouter);
 app.use('/api/admin/assistant', assistantRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/knowledge', knowledgeRouter);
+app.use('/api/faq', faqRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/je', jeRouter);
+app.use('/api/membership', membershipRouter);
 app.use('/api', documentsRouter);
 
 // Current build fingerprint. Clients poll this and self-heal when the
@@ -100,6 +112,15 @@ app.use((err, req, res, next) => {
 
 const seeded = seedAdmin();
 seedJeRuleset();
+seedFaq();
+seedMembershipTiers();
+
+// AI allowance queue worker: drains queued jobs when allowance frees.
+// 30s cadence is plenty — the member promise is "around HH:MM".
+if (process.env.NODE_ENV !== 'test') {
+  processAiQueue().catch(() => {});
+  setInterval(() => processAiQueue().catch(() => {}), 30_000);
+}
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(config.port, () => {

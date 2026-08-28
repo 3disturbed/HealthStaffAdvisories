@@ -53,7 +53,7 @@ function client() {
 }
 
 async function registerAndVerify(api, email, name) {
-  await api('/api/auth/register', { method: 'POST', body: { email, password: 'longpassword-1', displayName: name } });
+  await api('/api/auth/register', { method: 'POST', body: { email, password: 'longpassword-1', displayName: name, payBand: 'band_5' } });
   const userId = db.prepare('SELECT id FROM users WHERE email = ?').get(email).id;
   db.prepare(`UPDATE users SET status = 'active', email_verified_at = datetime('now') WHERE id = ?`).run(userId);
   await api('/api/auth/login', { method: 'POST', body: { email, password: 'longpassword-1' } });

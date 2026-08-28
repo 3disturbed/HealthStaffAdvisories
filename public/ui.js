@@ -1,6 +1,10 @@
 // Shared UI helpers: motion, skeletons, toasts, icons, empty states.
 // Every JS-driven animation routes through here so reduced-motion is
 // respected in one place. All styling lives in styles.css (strict CSP).
+import { escAttr } from '/escape.js';
+
+// Text-context escape (quotes untouched — fine outside attributes).
+const escText = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -138,9 +142,9 @@ export function emptyState({ icon = 'file', title, body = '', actionHref = '', a
   return `
     <div class="empty-state">
       <div class="empty-icon">${ICONS[icon] || ICONS.file}</div>
-      <h3>${title}</h3>
-      ${body ? `<p class="muted small">${body}</p>` : ''}
-      ${actionHref ? `<p><a class="btn" href="${actionHref}">${actionLabel}</a></p>` : ''}
+      <h3>${escText(title)}</h3>
+      ${body ? `<p class="muted small">${escText(body)}</p>` : ''}
+      ${actionHref ? `<p><a class="btn" href="${escAttr(actionHref)}">${escText(actionLabel)}</a></p>` : ''}
     </div>`;
 }
 
@@ -152,9 +156,9 @@ export function openSheet(title, bodyHtml) {
   overlay.id = 'sheet-overlay';
   overlay.className = 'sheet-overlay';
   overlay.innerHTML = `
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="${title}">
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="${escAttr(title)}">
       <div class="sheet-grab" aria-hidden="true"></div>
-      <div class="sheet-head"><strong>${title}</strong>
+      <div class="sheet-head"><strong>${escText(title)}</strong>
         <button class="sheet-close" type="button" aria-label="Close">✕</button></div>
       <div class="sheet-body">${bodyHtml}</div>
     </div>`;

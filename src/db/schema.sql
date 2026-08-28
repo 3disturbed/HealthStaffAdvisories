@@ -662,3 +662,158 @@ CREATE TABLE IF NOT EXISTS je_signoffs (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_je_signoffs_review ON je_signoffs(review_id);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- FAQ / help content. Advisor-authored, human-approved wording. Surfaces
+-- publicly (/faq.html, no session) and inside the member portal. The AI never
+-- writes an answer — it only re-ranks ids (src/ai/faqSearch.js). Answers are
+-- plain text plus a light markdown subset; rendering is client-side
+-- (public/markdown.js), so the server only ever stores and returns text.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS faq_categories (
+  id INTEGER PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,                  -- deep link: /faq.html#/pay
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  seq INTEGER NOT NULL DEFAULT 0,             -- editorial order, gaps of 10
+  status TEXT NOT NULL DEFAULT 'draft',       -- draft | published
+  visibility TEXT NOT NULL DEFAULT 'public',  -- public | members
+  created_by INTEGER REFERENCES users(id),
+  updated_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_faq_categories_seq ON faq_categories(seq);
+
+-- category_id carries NO ON DELETE action on purpose: deleting a category must
+-- never silently destroy published, deep-linked help content. deleteCategory()
+-- blocks (or reassigns) and this FK is the backstop if anyone bypasses it.
+-- slug is GLOBALLY unique (not scoped to the category as elsewhere in this
+-- schema) so a published link survives an advisor re-filing the entry.
+CREATE TABLE IF NOT EXISTS faq_questions (
+  id INTEGER PRIMARY KEY,
+  category_id INTEGER NOT NULL REFERENCES faq_categories(id),
+  slug TEXT NOT NULL UNIQUE,
+  question TEXT NOT NULL,
+  answer TEXT NOT NULL,                       -- plain text + light markdown, never HTML
+  keywords TEXT NOT NULL DEFAULT '',          -- advisor synonyms; search only
+  seq INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',       -- draft | published
+  visibility TEXT NOT NULL DEFAULT 'public',  -- public | members
+  view_count INTEGER NOT NULL DEFAULT 0,
+  helpful_count INTEGER NOT NULL DEFAULT 0,
+  not_helpful_count INTEGER NOT NULL DEFAULT 0,
+  created_by INTEGER REFERENCES users(id),
+  updated_by INTEGER REFERENCES users(id),
+  published_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_faq_questions_category ON faq_questions(category_id, seq);
+CREATE INDEX IF NOT EXISTS idx_faq_questions_status ON faq_questions(status, visibility);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS faq_fts USING fts5(
+  question, answer, keywords, content='faq_questions', content_rowid='id'
+);
+
+CREATE TRIGGER IF NOT EXISTS faq_questions_ai AFTER INSERT ON faq_questions BEGIN
+  INSERT INTO faq_fts(rowid, question, answer, keywords)
+  VALUES (new.id, new.question, new.answer, new.keywords);
+END;
+CREATE TRIGGER IF NOT EXISTS faq_questions_ad AFTER DELETE ON faq_questions BEGIN
+  INSERT INTO faq_fts(faq_fts, rowid, question, answer, keywords)
+  VALUES ('delete', old.id, old.question, old.answer, old.keywords);
+END;
+-- UNLIKE knowledge_chunks and je_profiles, FAQ entries are EDITED IN PLACE, so
+-- this table needs the update trigger those two do not have. Without it the
+-- external-content index keeps the pre-edit text while the row returns the new
+-- one: a search for the OLD wording matches and renders the NEW answer — a
+-- confidently wrong answer, not merely a missing one. Verified on SQLite
+-- 3.53.4. Note also that `INSERT INTO faq_fts(faq_fts) VALUES('integrity-check')`
+-- and the rank=0 form both PASS on such an index; only rank=1 detects it.
+-- Scoped with UPDATE OF so counter bumps (view/helpful) never churn the index —
+-- write those as their own statement touching only counter columns. If you add
+-- a column to faq_fts you MUST add it to this OF list and to all three
+-- triggers. Never use INSERT OR REPLACE here: it bypasses the delete leg.
+CREATE TRIGGER IF NOT EXISTS faq_questions_au
+AFTER UPDATE OF question, answer, keywords ON faq_questions BEGIN
+  INSERT INTO faq_fts(faq_fts, rowid, question, answer, keywords)
+  VALUES ('delete', old.id, old.question, old.answer, old.keywords);
+  INSERT INTO faq_fts(rowid, question, answer, keywords)
+  VALUES (new.id, new.question, new.answer, new.keywords);
+END;
+
+-- ── Membership & billing (kelly-4f) ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS membership_tiers (
+  id TEXT PRIMARY KEY,                      -- stable slug: pilot | standard | plus
+  name TEXT NOT NULL,
+  price_pence INTEGER NOT NULL DEFAULT 0,   -- per monthly period
+  currency TEXT NOT NULL DEFAULT 'gbp',
+  ai_daily_allowance INTEGER NOT NULL DEFAULT 3,
+  rank INTEGER NOT NULL DEFAULT 0,          -- upgrade ordering
+  active INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tier_id TEXT NOT NULL REFERENCES membership_tiers(id),
+  status TEXT NOT NULL DEFAULT 'active',    -- active | expired | cancelled
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,                 -- OUR renewal date; authoritative
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_subs_user ON subscriptions(user_id, status);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  amount_pence INTEGER NOT NULL,            -- refunds NEGATIVE so SUM() = net paid
+  currency TEXT NOT NULL DEFAULT 'gbp',
+  kind TEXT NOT NULL,                       -- purchase | upgrade | comp | refund
+  tier_id TEXT NOT NULL REFERENCES membership_tiers(id),
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  stripe_session_id TEXT UNIQUE,            -- idempotency backstop; NULL for comps
+  stripe_payment_intent TEXT,
+  quote_json TEXT,                          -- frozen quote breakdown for audit
+  recorded_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
+
+-- Quote frozen at checkout time so a price/CV change between "create
+-- session" and "webhook arrives" cannot change what fulfilment applies.
+CREATE TABLE IF NOT EXISTS membership_quotes (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,                       -- purchase | upgrade
+  tier_id TEXT NOT NULL REFERENCES membership_tiers(id),
+  amount_pence INTEGER NOT NULL,
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  breakdown_json TEXT NOT NULL DEFAULT '{}',
+  stripe_session_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | paid | expired
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+
+-- AI allowance queue: exhausted allowance NEVER rejects — jobs wait here.
+CREATE TABLE IF NOT EXISTS ai_jobs (
+  id INTEGER PRIMARY KEY,
+  case_id INTEGER NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  task TEXT NOT NULL DEFAULT 'intake',      -- intake | reanalyse
+  status TEXT NOT NULL DEFAULT 'queued',    -- queued | running | done | failed
+  requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  not_before TEXT,
+  started_at TEXT,
+  finished_at TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_due ON ai_jobs(status, not_before);

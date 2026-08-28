@@ -31,6 +31,24 @@ if (ctaBar && !user) {
   document.body.classList.add('has-ctabar');
 }
 
+// Live pricing tiers (admin repricing shows here instantly). The static
+// pilot paragraph stays as the no-JS/error fallback.
+const tierGrid = document.getElementById('pricing-tiers');
+if (tierGrid) {
+  try {
+    const { tiers } = await (await fetch('/api/membership/tiers')).json();
+    if (tiers?.length) {
+      tierGrid.innerHTML = tiers.map((t) => `
+        <div class="card reveal">
+          <h3 class="mt0">${t.name.replace(/[<>&]/g, '')}</h3>
+          <p class="stat-num">${t.pricePence === 0 ? 'Free' : `£${(t.pricePence / 100).toFixed(2)}`}<span class="small muted">${t.pricePence === 0 ? '' : ' / month'}</span></p>
+          <p class="small muted">${t.aiDailyAllowance} AI case ${t.aiDailyAllowance === 1 ? 'analysis' : 'analyses'} per day — never cut off, extra requests simply queue. Human review by Kelly on every tier.</p>
+        </div>`).join('');
+      document.getElementById('pricing-fallback')?.classList.add('hidden');
+    }
+  } catch { /* fallback paragraph stays */ }
+}
+
 // Trust-signals band above the footer (injected, so observed afterwards).
 const trustBand = document.getElementById('trust-band');
 if (trustBand) {

@@ -38,6 +38,7 @@ if (registerForm) {
         method: 'POST',
         body: {
           displayName: el('displayName').value,
+          payBand: el('payBand').value,
           email: el('email').value,
           password: el('password').value,
         },

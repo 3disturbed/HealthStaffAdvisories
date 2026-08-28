@@ -64,6 +64,7 @@ npm test        # run the test suite
 - The main administration account is **mapadocrew@gmail.com** (seeded on first run). It can grant and remove roles/permissions for all other accounts from the Admin area.
 - Secrets and configuration live in `.env` (never committed).
 - The OpenAI API key is entered by an administrator in **Admin → Settings** after first sign-in; AI intake stays off until then, and the member ↔ Kelly case loop works either way.
+- **Membership & payments:** three tiers (Pilot free / Standard / Plus) with prices and per-tier daily AI allowances editable in **Admin → Membership**. Stripe keys are entered there too (test-mode keys show a badge); until then upgrades are hidden and everyone stays on the free Pilot tier. Exhausted AI allowances never reject — requests queue and run when allowance frees. Local webhook testing: `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
 
 ## Documentation
 

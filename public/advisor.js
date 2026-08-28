@@ -219,7 +219,8 @@ async function renderCase(id) {
     <div class="card">
       <h3 class="mt0">Member</h3>
       <p>${esc(c.member)} · <a href="mailto:${escAttr(c.memberEmail)}">${esc(c.memberEmail)}</a><br>
-      <span class="muted small">Member since ${esc(fmtDay(c.memberSince))}</span></p>
+      <span class="muted small">Member since ${esc(fmtDay(c.memberSince))}</span>
+      ${c.memberPayBand ? `<br><span class="tag">${esc(c.memberPayBand.replace('band_', 'AfC Band ').replace('_', ' '))}</span>` : ''}</p>
       <p><strong>Employer:</strong> ${esc(c.employer || '—')}<br>
       <strong>Role/staff group:</strong> ${esc(c.staffGroup || '—')}<br>
       <strong>Formal steps so far:</strong> ${esc(c.formalStage || '—')}<br>

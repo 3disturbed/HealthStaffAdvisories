@@ -6,7 +6,8 @@ import { assessJeSignals } from '../safety/jeUrgency.js';
 import { audit } from '../audit/log.js';
 import { notifyUser, sendNotificationEmail } from '../notify/mailer.js';
 import { userHas } from '../rbac/permissions.js';
-import { runIntake, aiEnabled } from '../ai/intake.js';
+import { aiEnabled } from '../ai/intake.js';
+import { enqueueOrRun, caseAiQueueState } from '../services/aiQueue.js';
 
 export const casesRouter = Router();
 
@@ -118,13 +119,16 @@ casesRouter.post('/', requirePermission('cases.own'), (req, res) => {
 
   audit(req.user.id, 'case.created', 'case', caseId, { urgency, triggers: triggers.map((t) => t.id) });
 
-  // AI intake runs in the background; failures never block the case.
-  const aiQueued = aiEnabled();
-  if (aiQueued) {
-    runIntake(caseId).catch((err) => console.error(`AI intake failed for case ${caseId}: ${err.message}`));
-  }
+  // AI intake runs in the background through the member's allowance: it
+  // either starts now or waits its turn — never rejected (membership rule).
+  const gate = enqueueOrRun({ caseId, userId: req.user.id, task: 'intake' });
 
-  res.json({ ok: true, caseId, urgency, urgent: triggers.length > 0, aiQueued, jeInterest: jeSignals.flags.length > 0 });
+  res.json({
+    ok: true, caseId, urgency, urgent: triggers.length > 0,
+    aiQueued: !!(gate.ran || gate.queued),
+    aiExpectedAt: gate.expectedAt || null,
+    jeInterest: jeSignals.flags.length > 0,
+  });
 });
 
 casesRouter.get('/', requirePermission('cases.own'), (req, res) => {
@@ -195,6 +199,7 @@ casesRouter.get('/:id', requirePermission('cases.own'), (req, res) => {
       nextImportantAt: c.next_important_at, createdAt: c.created_at,
     },
     messages, timeline, documents, escalations, intake: memberIntake,
+    aiQueue: caseAiQueueState(c.id),
   });
 });
 

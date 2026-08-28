@@ -49,7 +49,7 @@ function client() {
 }
 
 async function registerAndVerify(api, email, name) {
-  const reg = await api('/api/auth/register', { method: 'POST', body: { email, password: 'longpassword-1', displayName: name } });
+  const reg = await api('/api/auth/register', { method: 'POST', body: { email, password: 'longpassword-1', displayName: name, payBand: 'band_5' } });
   assert.equal(reg.status, 200, JSON.stringify(reg.data));
   const userId = db.prepare('SELECT id FROM users WHERE email = ?').get(email).id;
   // Tests may read the DB directly to simulate clicking the emailed link.
@@ -65,7 +65,12 @@ const memberB = client();
 
 test('unverified account cannot sign in', async () => {
   const api = client();
-  await api('/api/auth/register', { method: 'POST', body: { email: 'unverified@example.com', password: 'longpassword-1', displayName: 'Unverified' } });
+  // Band is required at sign-up — missing or invalid values are rejected.
+  const noBand = await api('/api/auth/register', { method: 'POST', body: { email: 'unverified@example.com', password: 'longpassword-1', displayName: 'Unverified' } });
+  assert.equal(noBand.status, 400);
+  const badBand = await api('/api/auth/register', { method: 'POST', body: { email: 'unverified@example.com', password: 'longpassword-1', displayName: 'Unverified', payBand: 'band_11' } });
+  assert.equal(badBand.status, 400);
+  await api('/api/auth/register', { method: 'POST', body: { email: 'unverified@example.com', password: 'longpassword-1', displayName: 'Unverified', payBand: 'band_6' } });
   const login = await api('/api/auth/login', { method: 'POST', body: { email: 'unverified@example.com', password: 'longpassword-1' } });
   assert.equal(login.status, 403);
 });
