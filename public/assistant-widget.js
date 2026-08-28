@@ -8,7 +8,11 @@ export function createChatUI(container) {
   container.innerHTML = `
     <div class="assistant-chatwrap">
       <div class="assistant-tabs" data-tabs></div>
-      <div class="assistant-body" data-body><p class="muted small">Loading…</p></div>
+      <div class="assistant-body" data-body>
+        <div class="skel skel-line" data-w="60"></div>
+        <div class="skel skel-line" data-w="85"></div>
+        <div class="skel skel-line" data-w="40"></div>
+      </div>
       <form class="assistant-inputrow" data-form>
         <textarea data-text rows="2" maxlength="4000" placeholder="Ask about accounts, cases, deadlines…" aria-label="Message the assistant"></textarea>
         <button class="btn" type="submit" data-send>Send</button>
@@ -98,10 +102,11 @@ export function createChatUI(container) {
       banners.push(`<div class="notice error small">${esc(note)}<br><button class="btn small quiet" type="button" data-retry>Try again</button></div>`);
     }
 
+    const msgs = state?.messages || [];
     body.innerHTML = `
       ${banners.join('')}
-      ${(state?.messages || []).map((m) => `
-        <div class="msg ${m.role === 'user' ? 'member' : 'system'}">
+      ${msgs.map((m, i) => `
+        <div class="msg ${m.role === 'user' ? 'member' : 'system'}${i === msgs.length - 1 ? ' anim-msg-in' : ''}">
           <div class="who">${m.role === 'user' ? 'You' : 'Assistant'} · ${esc(fmtDate(m.createdAt))}</div>
           <div class="body">${esc(m.content)}</div>
         </div>`).join('') || '<p class="muted small">Try “Which case has the highest priority and shortest deadline?” or “Draft an information request for case 1.”</p>'}
@@ -207,7 +212,7 @@ export function mountAssistantWidget() {
 
   const overlay = document.createElement('div');
   overlay.id = 'assistant-overlay';
-  overlay.className = 'assistant-overlay hidden';
+  overlay.className = 'assistant-overlay';
   overlay.innerHTML = `
     <div class="assistant-panel" role="dialog" aria-modal="true" aria-label="Assistant">
       <div class="assistant-head">
@@ -220,16 +225,18 @@ export function mountAssistantWidget() {
 
   let loaded = false;
   function toggle(show) {
-    overlay.classList.toggle('hidden', !show);
+    overlay.classList.toggle('open', show);
     fab.classList.toggle('hidden', show);
     if (show && !loaded) {
       loaded = true;
       createChatUI(document.getElementById('assistant-chatholder'));
     }
   }
+  // Lets the bottom tab bar's Assistant tab open the same panel.
+  window.__openAssistant = () => toggle(true);
 
   fab.addEventListener('click', () => toggle(true));
   overlay.querySelector('#assistant-close').addEventListener('click', () => toggle(false));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) toggle(false); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.classList.contains('hidden')) toggle(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) toggle(false); });
 }

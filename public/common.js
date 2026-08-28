@@ -1,7 +1,8 @@
 // Shared helpers for all pages. No framework — plain browser JS.
+import { ICONS, pop, openSheet } from '/ui.js';
 
 // PWA: register the (network-first) service worker. The install prompt is
-// captured earlier, in /pwa-early.js, and the UI lives in /install-ui.js.
+// captured earlier, in /pwa-early.js; theme in /theme-boot.js.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
@@ -64,7 +65,148 @@ export function fmtDay(value) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// Render the signed-in navigation. Pages pass their own id for highlighting.
+// ── notifications (badge + Alerts sheet) ─────────────────────────────────
+let notifPromise = null;
+export function fetchNotifications(fresh = false) {
+  if (!notifPromise || fresh) notifPromise = api('/notifications').catch(() => ({ notifications: [], unread: 0 }));
+  return notifPromise;
+}
+
+function setBadges(unread) {
+  document.querySelectorAll('[data-alert-badge]').forEach((slot) => {
+    slot.innerHTML = unread > 0 ? `<span class="badge-dot">${unread > 9 ? '9+' : unread}</span>` : '';
+  });
+}
+
+export async function openAlerts(user) {
+  const body = openSheet('Alerts', '<div class="skel skel-line" data-w="90"></div><div class="skel skel-line" data-w="75"></div>');
+  const { notifications } = await fetchNotifications(true);
+  const caseBase = can(user, 'cases.review') ? '/advisor.html#/case/' : '/portal.html#/case/';
+  body.innerHTML = notifications.length
+    ? notifications.map((n) => `
+        <a class="notif-item ${n.read_at ? '' : 'unread'}" href="${n.case_id ? `${caseBase}${n.case_id}` : '#'}">
+          ${esc(n.title)}${n.body ? `<span class="muted small"> — ${esc(n.body)}</span>` : ''}
+          <div class="muted small">${esc(fmtDate(n.created_at))}</div>
+        </a>`).join('')
+    : '<p class="muted small">Nothing yet. Updates about your cases appear here.</p>';
+  // Reading the sheet marks everything read.
+  api('/notifications/read', { method: 'POST' }).then(() => {
+    setBadges(0);
+    fetchNotifications(true);
+  }).catch(() => {});
+}
+
+// ── tab bar ──────────────────────────────────────────────────────────────
+function tabsForRole(user) {
+  if (can(user, 'cases.review')) {
+    return [
+      { id: 'advisor-today', icon: 'today', label: 'Today', href: '/advisor.html#/' },
+      { id: 'advisor-queue', icon: 'queue', label: 'Queue', href: '/advisor.html#/queue' },
+      { id: 'assistant', icon: 'chat', label: 'Assistant', action: 'assistant' },
+      { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
+      { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
+    ];
+  }
+  if (['users.manage', 'system.admin', 'audit.view', 'knowledge.manage'].some((p) => can(user, p))) {
+    const tabs = [
+      { id: 'admin-overview', icon: 'overview', label: 'Overview', href: '/admin.html#/overview' },
+    ];
+    if (can(user, 'users.manage')) tabs.push({ id: 'admin-users', icon: 'users', label: 'Users', href: '/admin.html#/users' });
+    if (['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p))) {
+      tabs.push({ id: 'assistant', icon: 'chat', label: 'Assistant', action: 'assistant' });
+    }
+    tabs.push(
+      { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
+      { id: 'account', icon: 'account', label: 'Account', href: '/account.html' }
+    );
+    return tabs;
+  }
+  if (can(user, 'cases.own')) {
+    return [
+      { id: 'portal-home', icon: 'home', label: 'Home', href: '/portal.html#/' },
+      { id: 'portal-cases', icon: 'cases', label: 'Cases', href: '/portal.html#/cases' },
+      { id: 'portal-new', icon: 'plus', label: 'Start', href: '/portal.html#/new', accent: true },
+      { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
+      { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
+    ];
+  }
+  return [];
+}
+
+function currentTabId(tabs) {
+  const here = window.location.pathname.replace(/\/$/, '') || '/index.html';
+  const hash = window.location.hash || '#/';
+  let best = null;
+  for (const t of tabs) {
+    if (!t.href) continue;
+    const [path, tabHash] = t.href.split('#');
+    if (path !== here && `${path}` !== `${here}`) continue;
+    if (tabHash) {
+      const want = `#${tabHash}`;
+      if (hash === want || (want !== '#/' && hash.startsWith(want))) return t.id;
+      if (want === '#/' && (hash === '#/' || hash === '')) best = best || t.id;
+      if (want === '#/' && hash.startsWith('#/case/')) best = best || t.id; // case views belong to the home tab
+    } else {
+      best = best || t.id;
+    }
+  }
+  return best || tabs.find((t) => t.href)?.id || null;
+}
+
+function renderTabBar(user) {
+  const bar = document.getElementById('tab-bar');
+  if (!bar) return;
+  const tabs = tabsForRole(user);
+  if (tabs.length === 0) return;
+
+  bar.innerHTML = `<div class="tab-indicator" aria-hidden="true"></div>${tabs
+    .map((t) => t.href
+      ? `<a class="tab-item ${t.accent ? 'accent-tab' : ''}" data-tab-id="${t.id}" href="${t.href}">
+           <span class="tab-icon">${ICONS[t.icon]}</span>${t.badge ? '<span data-alert-badge></span>' : ''}
+           <span class="tab-label">${t.label}</span></a>`
+      : `<button class="tab-item" type="button" data-tab-id="${t.id}" data-action="${t.action}">
+           <span class="tab-icon">${ICONS[t.icon]}</span>${t.badge ? '<span data-alert-badge></span>' : ''}
+           <span class="tab-label">${t.label}</span></button>`)
+    .join('')}`;
+  bar.hidden = false;
+  document.body.classList.add('has-tabbar');
+
+  const indicator = bar.querySelector('.tab-indicator');
+  const n = tabs.length;
+  indicator.style.width = `${40 / n}%`;
+  indicator.style.marginLeft = `${30 / n}%`;
+
+  function setActive() {
+    const activeTab = currentTabId(tabs);
+    const idx = Math.max(0, tabs.findIndex((t) => t.id === activeTab));
+    bar.querySelectorAll('.tab-item').forEach((elTab) => {
+      const on = elTab.dataset.tabId === activeTab;
+      elTab.classList.toggle('active', on);
+      if (on) elTab.setAttribute('aria-current', 'page');
+      else elTab.removeAttribute('aria-current');
+    });
+    indicator.style.transform = `translateX(${idx * 250}%)`;
+  }
+  setActive();
+  window.addEventListener('hashchange', setActive);
+
+  bar.querySelectorAll('.tab-item').forEach((item) =>
+    item.addEventListener('click', () => pop(item.querySelector('svg'))));
+  bar.querySelectorAll('[data-action="alerts"]').forEach((b) =>
+    b.addEventListener('click', () => openAlerts(user)));
+  bar.querySelectorAll('[data-action="assistant"]').forEach((b) =>
+    b.addEventListener('click', () => window.__openAssistant?.()));
+
+  // Hide the bar while the keyboard is open (mobile).
+  document.addEventListener('focusin', (e) => {
+    if (e.target.matches('input, textarea, select')) document.body.classList.add('kb-open');
+  });
+  document.addEventListener('focusout', () => document.body.classList.remove('kb-open'));
+
+  fetchNotifications().then((n2) => setBadges(n2.unread));
+}
+
+// ── header nav ───────────────────────────────────────────────────────────
 export async function renderNav(activeId) {
   const nav = document.querySelector('.site-header nav');
   if (!nav) return null;
@@ -83,6 +225,18 @@ export async function renderNav(activeId) {
   nav.innerHTML = links
     .map(([id, href, label]) => `<a href="${href}" data-nav="${id}" class="${id === activeId ? 'active' : ''}">${label}</a>`)
     .join('');
+
+  if (user) {
+    // Header bell (kept visible on mobile alongside the tab bar).
+    const bell = document.createElement('button');
+    bell.className = 'bell-btn';
+    bell.type = 'button';
+    bell.setAttribute('aria-label', 'Alerts');
+    bell.innerHTML = `${ICONS.bell}<span data-alert-badge></span>`;
+    bell.addEventListener('click', () => openAlerts(user));
+    nav.appendChild(bell);
+  }
+
   const logout = nav.querySelector('[data-nav="logout"]');
   if (logout) {
     logout.addEventListener('click', async (e) => {
@@ -91,10 +245,15 @@ export async function renderNav(activeId) {
       window.location.href = '/';
     });
   }
-  // Floating assistant for accounts that hold at least one assistant
-  // permission (the server gates every call regardless).
-  if (user && ['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p))) {
-    import('/assistant-widget.js').then((m) => m.mountAssistantWidget()).catch(() => {});
+
+  if (user) {
+    renderTabBar(user);
+    // Floating assistant for accounts holding at least one assistant
+    // permission (the server gates every call regardless).
+    if (['users.manage', 'cases.review', 'knowledge.manage'].some((p) => can(user, p))) {
+      import('/assistant-widget.js').then((m) => m.mountAssistantWidget()).catch(() => {});
+    }
+    fetchNotifications().then((n) => setBadges(n.unread));
   }
   return user;
 }

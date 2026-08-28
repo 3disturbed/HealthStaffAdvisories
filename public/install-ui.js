@@ -53,7 +53,7 @@ export function installPanel({ variant = 'card' } = {}) {
   const heading = state.kind === 'installed' ? 'App installed' : 'Get the Kelly Online app';
   return `
     <div class="card" id="install-card">
-      <h3 class="mt0"><img src="/icons/icon-192.png" alt="" width="28" height="28" style="vertical-align:-6px"> ${esc(heading)}</h3>
+      <h3 class="mt0"><img src="/icons/icon-192.png" alt="" width="28" height="28" class="install-icon"> ${esc(heading)}</h3>
       ${BODY[state.kind]}
       <p>
         ${state.kind === 'prompt' ? '<button class="btn" id="install-app">Install app</button>' : ''}
