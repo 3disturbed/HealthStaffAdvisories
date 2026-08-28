@@ -82,22 +82,41 @@ test('the main admin sees all ten sections and all three workspaces', () => {
   assert.deepEqual(menuGroups(user).map((g) => g.title), ['Your cases', 'Advisor', 'Admin', 'Account']);
 });
 
-test('every signed-in account gets Questions, Account and Sign out', () => {
+test('every signed-in account gets Inbox, Questions, Account and Sign out', () => {
   for (const user of [roleUser('member'), roleUser('advisor'), roleUser('admin'), withPerms()]) {
     const account = group(user, 'Account');
-    assert.deepEqual(account.items.map((i) => i.id), ['faq', 'account', 'logout']);
+    assert.deepEqual(account.items.map((i) => i.id), ['inbox', 'faq', 'account', 'logout']);
   }
-  assert.deepEqual(menuGroups(null), [], 'signed out gets no menu at all');
+});
+
+test('a signed-out visitor gets the links the header no longer carries', () => {
+  // The bar has no links for anyone now, so this menu is the only route to
+  // these four (the mobile .cta-bar still offers the two CTAs separately).
+  assert.deepEqual(menuGroups(null).map((g) => g.title), ['Help', 'Account']);
+  assert.deepEqual(
+    menuGroups(null).flatMap((g) => g.items.map((i) => i.href)),
+    ['/faq.html', '/contact.html', '/login.html', '/register.html']
+  );
+});
+
+test('a signed-out menu never leaks a destination behind the login', () => {
+  const hrefs = menuGroups(null).flatMap((g) => g.items.map((i) => i.href));
+  for (const href of hrefs) {
+    assert.ok(!/^\/(portal|advisor|admin|account|inbox)\.html/.test(href), `${href} needs a session`);
+  }
+  assert.ok(!hrefs.includes('#logout'), 'nothing to sign out of');
 });
 
 test('the menu never offers a destination the permissions did not grant', () => {
+  // Signed-in accounts only: an anonymous menu derives from no permissions at
+  // all, and is pinned by the two signed-out tests above.
   const users = [roleUser('member'), roleUser('advisor'), roleUser('admin'), mainAdmin(), withPerms('faq.manage'), withPerms('je.monitor'), withPerms()];
   for (const user of users) {
     const allowed = new Set([
       ...memberSections(user).map((s) => s.href),
       ...advisorSections(user).map((s) => s.href),
       ...(hasAdminSurface(user) ? adminSections(user).map((s) => `/admin.html#/${s.id}`) : []),
-      '/faq.html', '/account.html', '#logout',
+      '/inbox.html', '/faq.html', '/account.html', '#logout',
     ]);
     for (const g of menuGroups(user)) {
       for (const item of g.items) {
@@ -108,7 +127,7 @@ test('the menu never offers a destination the permissions did not grant', () => 
 });
 
 test('no group is ever rendered empty', () => {
-  for (const user of [roleUser('member'), roleUser('advisor'), roleUser('admin'), mainAdmin(), withPerms()]) {
+  for (const user of [roleUser('member'), roleUser('advisor'), roleUser('admin'), mainAdmin(), withPerms(), null]) {
     for (const g of menuGroups(user)) assert.ok(g.items.length > 0, `${g.title} is empty`);
   }
 });

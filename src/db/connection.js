@@ -66,6 +66,9 @@ const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN pay_band TEXT NOT NULL DEFAULT '';
    ALTER TABLE ai_outputs ADD COLUMN billed_user_id INTEGER;
    CREATE INDEX IF NOT EXISTS idx_ai_outputs_billed ON ai_outputs(billed_user_id, created_at);`,
+  // v5 — contact messages: notifications learn to deep-link to a message
+  // thread, alongside the existing case and band-review links.
+  `ALTER TABLE notifications ADD COLUMN thread_id INTEGER REFERENCES message_threads(id) ON DELETE CASCADE;`,
 ];
 {
   let version = db.prepare('PRAGMA user_version').get().user_version;

@@ -75,7 +75,26 @@ export function memberSections(user) {
 // never sees an 'Admin' heading and an advisor-only account never sees 'Your
 // cases'.
 export function menuGroups(user) {
-  if (!user) return [];
+  // Signed out. The header carries no links either, so this is the only route
+  // to these four; on mobile the sticky .cta-bar still offers the two CTAs.
+  if (!user) {
+    return [
+      {
+        title: 'Help',
+        items: [
+          { id: 'faq', label: 'Questions', href: '/faq.html' },
+          { id: 'contact', label: 'Contact', href: '/contact.html' },
+        ],
+      },
+      {
+        title: 'Account',
+        items: [
+          { id: 'login', label: 'Sign in', href: '/login.html' },
+          { id: 'register', label: 'Create account', href: '/register.html' },
+        ],
+      },
+    ];
+  }
   const admin = hasAdminSurface(user)
     ? adminSections(user).map((s) => ({ id: `admin-${s.id}`, label: s.label, href: `/admin.html#/${s.id}` }))
     : [];
@@ -86,6 +105,7 @@ export function menuGroups(user) {
     {
       title: 'Account',
       items: [
+        { id: 'inbox', label: 'Inbox', href: '/inbox.html' },
         { id: 'faq', label: 'Questions', href: '/faq.html' },
         { id: 'account', label: 'Account', href: '/account.html' },
         { id: 'logout', label: 'Sign out', href: '#logout' },

@@ -21,6 +21,8 @@ import { stripeWebhookHandler } from './api/stripeWebhook.js';
 import { seedMembershipTiers } from './db/connection.js';
 import { processAiQueue } from './services/aiQueue.js';
 import { faqRouter } from './api/faq.js';
+import { contactRouter } from './api/contact.js';
+import { messagesRouter } from './api/messages.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -77,6 +79,8 @@ app.use('/api/admin/assistant', assistantRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/faq', faqRouter);
+app.use('/api/contact', contactRouter);
+app.use('/api/messages', messagesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/je', jeRouter);

@@ -26,6 +26,13 @@ export function notifyUserJe(userId, type, title, jeReviewId, body = '') {
   ).run(userId, type, title, body, jeReviewId);
 }
 
+// Notification that deep-links to a contact message thread.
+export function notifyUserThread(userId, type, title, threadId, body = '') {
+  db.prepare(
+    'INSERT INTO notifications (user_id, type, title, body, thread_id) VALUES (?, ?, ?, ?, ?)'
+  ).run(userId, type, title, body, threadId);
+}
+
 // Notification email that respects the user's email preference. Account
 // emails (verification, reset) must NOT go through this — always delivered.
 export function sendNotificationEmail(userId, subject, body) {

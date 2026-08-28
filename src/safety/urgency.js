@@ -5,7 +5,7 @@
 // The LLM may also propose urgency, but can never lower what these rules set.
 
 const RULES = [
-  { id: 'immediate_danger', severity: 'critical', reason: 'Member may be in immediate danger', re: /\b(immediate danger|not safe|kill myself|suicid|end my life|self.?harm)\b/i },
+  { id: 'immediate_danger', severity: 'critical', reason: 'Member may be in immediate danger', re: /\b(immediate danger|not safe|kill myself|suicid\w*|end my life|self.?harm)\b/i },
   { id: 'dismissal_happened', severity: 'critical', reason: 'Dismissal appears to have already happened', re: /\b(?:(?:was|were|been|got|being)\s+(?:dismissed|sacked|fired)|(?:dismissed|sacked|fired)\s+(?:me|from)|terminated my (?:contract|employment)|lost my job)\b/i },
   { id: 'tribunal_deadline', severity: 'critical', reason: 'Possible employment tribunal time limit', re: /\b(tribunal|acas early conciliation|et1|time limit)\b/i },
   { id: 'hearing_imminent', severity: 'high', reason: 'Hearing or formal meeting appears imminent', re: /\b(hearing|disciplinary meeting|grievance meeting|investigation meeting)\b.{0,40}\b(tomorrow|today|this week|monday|tuesday|wednesday|thursday|friday|next week)\b|\b(tomorrow|today|this week)\b.{0,40}\b(hearing|disciplinary|grievance)\b/i },

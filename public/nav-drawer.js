@@ -97,7 +97,8 @@ function open(user) {
 
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   overlay.querySelector('.nav-drawer-close').addEventListener('click', () => close());
-  overlay.querySelector('[data-menu="logout"]').addEventListener('click', (e) => {
+  // Optional: an anonymous menu has no sign-out item.
+  overlay.querySelector('[data-menu="logout"]')?.addEventListener('click', (e) => {
     e.preventDefault();
     close({ restoreFocus: false });
     signOutFn?.();
@@ -115,8 +116,9 @@ function open(user) {
   }
 }
 
-// Appends the toggle to the header nav. Kept a <button>, not a link, so the
-// mobile rule that hides `.site-header nav a:not(.nav-keep)` leaves it alone.
+// Appends the toggle to the header nav. Mounted for every visitor: the header
+// carries no links of its own, so this is the only way into the rest of the
+// site besides the mobile tab bar.
 export function mountNavDrawer(nav, user, signOut) {
   signOutFn = signOut;
   toggle = document.createElement('button');

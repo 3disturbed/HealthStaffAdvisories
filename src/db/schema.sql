@@ -817,3 +817,53 @@ CREATE TABLE IF NOT EXISTS ai_jobs (
   last_error TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_ai_jobs_due ON ai_jobs(status, not_before);
+
+-- Contact messages. A thread is one conversation between a person and the
+-- advisor team. The sender may be signed in (user_id set, reads the thread in
+-- their Inbox) or an anonymous visitor (user_id NULL, reads it through an
+-- emailed magic link). sender_email is kept either way so a reply can be
+-- delivered even after an account is closed — data-rights requests arrive
+-- here from ex-members.
+CREATE TABLE IF NOT EXISTS message_threads (
+  id INTEGER PRIMARY KEY,
+  subject TEXT NOT NULL,
+  topic TEXT NOT NULL DEFAULT 'general',    -- general | pilot | data_rights | billing | other
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  sender_name TEXT NOT NULL,
+  sender_email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new',       -- new | open | answered | closed
+  urgency TEXT NOT NULL DEFAULT 'normal',   -- critical | high | normal
+  urgency_reason TEXT,
+  assigned_to INTEGER REFERENCES users(id),
+  last_message_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_message_by TEXT NOT NULL DEFAULT 'sender',  -- sender | advisor
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_threads_queue ON message_threads(status, urgency, last_message_at);
+CREATE INDEX IF NOT EXISTS idx_threads_user ON message_threads(user_id);
+
+CREATE TABLE IF NOT EXISTS thread_messages (
+  id INTEGER PRIMARY KEY,
+  thread_id INTEGER NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+  author_user_id INTEGER REFERENCES users(id),   -- NULL for an anonymous sender
+  author_role TEXT NOT NULL,                     -- sender | advisor
+  body TEXT NOT NULL,
+  read_by_sender_at TEXT,
+  read_by_staff_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_thread_messages ON thread_messages(thread_id, id);
+
+-- Magic-link access for anonymous senders. Same shape as sessions: the raw
+-- token is emailed once and only its hash is stored, so a database read can
+-- never reopen someone's thread.
+CREATE TABLE IF NOT EXISTS thread_access_tokens (
+  id INTEGER PRIMARY KEY,
+  thread_id INTEGER NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  last_used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_thread_tokens ON thread_access_tokens(thread_id);

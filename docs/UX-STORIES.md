@@ -164,9 +164,13 @@ Those checks live in one place: `public/nav-model.js` (DOM-free, unit-tested by 
 | Admin (non-advisor) | Overview · Users* · Assistant* · Alerts · Account *(permission-gated)* |
 | Signed-out visitor | Sticky CTA bar: Create free account · Sign in |
 
-Header hamburger (`.nav-toggle`, every viewport, signed in) opens a right-side drawer listing every destination the account holds, grouped Your cases / Advisor / Admin / Account. It is the reachability answer for the sections too deep for either the header links or the five tab slots — the ten admin sections and the band review workspaces, previously reachable only from inside their own page. A `<button>`, not a link, so the mobile rule that hides `.site-header nav a:not(.nav-keep)` leaves it alone. `role="dialog" aria-modal="true"`, scrim click and Escape close it, focus is trapped inside and returns to the toggle on close.
+The header carries **no links at all**: brand on the left, Inbox bell and hamburger on the right, for every visitor. The bell stays out of the drawer because it holds the unread badge, and a count behind a menu is a count nobody sees.
 
-Multi-role accounts get the highest workspace's tabs (advisor > admin > member); everything else stays reachable via the drawer, Account quick links and the header. The band review section lives at `#/banding/*` inside the member and advisor shells; tab definitions carry an optional `also` list of hash prefixes matched longest-first, so `#/banding/new` lights Start and `#/banding/*` lights Cases (member) or Queue (advisor). No role gains a sixth tab. Alerts is one shared notifications sheet for every role; opening it marks notifications read and deep-links per role (advisors → advisor case view, members → portal case view).
+Header hamburger (`.nav-toggle`, every viewport, signed in **or out**) opens a right-side drawer — the site's single navigation surface. Signed in it lists every destination the account holds, grouped Your cases / Advisor / Admin / Account, which is the reachability answer for the sections too deep for the five tab slots: the ten admin sections and the band review workspaces. Signed out it carries Help (Questions · Contact) and Account (Sign in · Create account). `role="dialog" aria-modal="true"`, scrim click and Escape close it, focus is trapped inside and returns to the toggle on close. Anonymous menus have no sign-out item, so the drawer's logout wiring is optional-chained.
+
+`.nav-keep` and the mobile rule that hid header links are both gone — there are no header links left to hide.
+
+Multi-role accounts get the highest workspace's tabs (advisor > admin > member); everything else stays reachable via the drawer and the Account quick links. The band review section lives at `#/banding/*` inside the member and advisor shells; tab definitions carry an optional `also` list of hash prefixes matched longest-first, so `#/banding/new` lights Start and `#/banding/*` lights Cases (member) or Queue (advisor). No role gains a sixth tab. Alerts is one shared notifications sheet for every role; opening it marks notifications read and deep-links per role (advisors → advisor case view, members → portal case view).
 
 ## Status → journey mapping (member)
 
@@ -203,14 +207,13 @@ Multi-role accounts get the highest workspace's tabs (advisor > admin > member);
 - **Member.** "I have a question that is not worth a case." Opens Common questions from the portal home or `#/faq` and sees the public answers plus members-only ones, badged so it is obvious which are not public.
 - **Kelly.** "I keep retyping the same explanation." Writes it once in Admin → FAQ with a live preview, saves it as a draft, publishes when happy, and reorders so the question people actually ask sits first.
 
-Nav: a **Questions** link in the header for everyone, signed in or not (tagged
-`nav-keep` so it survives the mobile tab-bar rule), plus a footer link on every
-public page. No sixth mobile tab — six tabs at 375px is too narrow for icon
-plus label.
+Nav: **Questions** sits in the drawer's Help group for everyone, signed in or
+not, plus a footer link on every public page. No sixth mobile tab — six tabs at
+375px is too narrow for icon plus label.
 
 ## Must not regress
 
-Permission gating (header nav, tab bar, drawer, admin gate and Account quick links all derived from `nav-model.js` — never a fifth hand-kept copy); FAQ visibility (anonymous must never receive a draft or members-only entry, through list, deep link or search); the FAQ markdown renderer's escape-before-transform order and its `p/br/ul/li/strong/a` output allow-list; FAQ search degrading to keyword ranking rather than erroring when AI is off; AI labelling and safety notices verbatim; assistant approve-before-send; urgent-help banners (may move earlier, never later or smaller); PII-redaction warnings; request-review gating; private-note visibility; API contracts (additive only); strict CSP (no inline styles/scripts); the cache-versioning self-heal. Band reviews add: the case wizard's 7 steps and single `POST /api/cases` body shape survive the wizard-engine extraction (M2); nothing from a band assessment reaches a member before sign-off + approval; comparator anonymity by default; the reference ruleset label/checksum/verification status on every assessment screen and report footer; the print palette reset applying in dark mode; no scheme constant (factor, points, band boundary) in application code — reference data only.
+Permission gating (tab bar, drawer, admin gate and Account quick links all derived from `nav-model.js` — never a fourth hand-kept copy); the signed-out drawer never offering a destination that needs a session; FAQ visibility (anonymous must never receive a draft or members-only entry, through list, deep link or search); the FAQ markdown renderer's escape-before-transform order and its `p/br/ul/li/strong/a` output allow-list; FAQ search degrading to keyword ranking rather than erroring when AI is off; AI labelling and safety notices verbatim; assistant approve-before-send; urgent-help banners (may move earlier, never later or smaller); PII-redaction warnings; request-review gating; private-note visibility; API contracts (additive only); strict CSP (no inline styles/scripts); the cache-versioning self-heal. Band reviews add: the case wizard's 7 steps and single `POST /api/cases` body shape survive the wizard-engine extraction (M2); nothing from a band assessment reaches a member before sign-off + approval; comparator anonymity by default; the reference ruleset label/checksum/verification status on every assessment screen and report footer; the print palette reset applying in dark mode; no scheme constant (factor, points, band boundary) in application code — reference data only.
 
 ## Out of scope (for now)
 

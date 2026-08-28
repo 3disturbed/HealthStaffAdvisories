@@ -173,7 +173,7 @@ export function upgradeQuote(userId, targetTierId, now = new Date()) {
     return { error: 'You already have this tier.', status: 400 };
   }
   if (!state.implicitPilot && target.rank < state.tier.rank) {
-    return { error: 'Downgrades take effect at renewal — contact us.', status: 400 };
+    return { error: 'Downgrades take effect at renewal — send us a message from /contact.html.', status: 400 };
   }
   if (state.implicitPilot && target.id === 'pilot') {
     return { error: 'You already have this tier.', status: 400 };

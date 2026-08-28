@@ -35,7 +35,7 @@ test('entry documents are never cached, so a new build is always discoverable', 
 });
 
 test('scripts and styles must revalidate before reuse', async () => {
-  for (const asset of ['/common.js', '/escape.js', '/nav-model.js', '/nav-drawer.js', '/markdown.js', '/faq.js', '/faq-ui.js', '/faq-admin.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
+  for (const asset of ['/common.js', '/escape.js', '/nav-model.js', '/nav-drawer.js', '/markdown.js', '/faq.js', '/faq-ui.js', '/faq-admin.js', '/contact.js', '/inbox.js', '/thread.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
     const res = await fetch(base + asset);
     assert.equal(res.status, 200, `${asset} should be served`);
     assert.equal(res.headers.get('cache-control'), 'no-cache', `${asset} should revalidate`);
@@ -103,6 +103,35 @@ test('the FAQ page ships no inline script or handler, so the strict CSP holds', 
   const inline = [...html.matchAll(/<script\b([^>]*)>/g)].filter((m) => !/\ssrc=/.test(m[1]));
   assert.deepEqual(inline, [], 'inline <script> is blocked by the CSP');
   assert.ok(!/\son(click|load|error|focus)\s*=/i.test(html), 'inline event handlers are blocked by the CSP');
+});
+
+// The contact form replaces a public mailto: and the thread page is opened
+// from an email, so both have to work with no session at all.
+test('the contact form and magic-link thread page are reachable without a session', async () => {
+  for (const url of ['/contact.html', '/contact', '/thread.html', '/thread']) {
+    const res = await fetch(base + url);
+    assert.equal(res.status, 200, `${url} should be served`);
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+    assert.equal(res.headers.get('x-app-version'), BUILD_VERSION);
+  }
+});
+
+test('the new pages ship no inline script or handler either', async () => {
+  for (const page of ['/contact.html', '/inbox.html', '/thread.html']) {
+    const html = await (await fetch(base + page)).text();
+    const inline = [...html.matchAll(/<script\b([^>]*)>/g)].filter((m) => !/\ssrc=/.test(m[1]));
+    assert.deepEqual(inline, [], `inline <script> in ${page} is blocked by the CSP`);
+    assert.ok(!/\son(click|load|error|focus)\s*=/i.test(html), `inline handlers in ${page} are blocked by the CSP`);
+  }
+});
+
+// The whole point of the change: no unmonitored address on a public page.
+test('the public pages no longer hand out a raw email address', async () => {
+  for (const page of ['/', '/privacy.html', '/terms.html', '/faq.html', '/emergency.html', '/ai-transparency.html']) {
+    const html = await (await fetch(base + page)).text();
+    assert.ok(!/mailto:/i.test(html), `${page} still contains a mailto: link`);
+    assert.match(html, /\/contact\.html/, `${page} should route people to the contact form`);
+  }
 });
 
 test('API responses are never stored, so member data cannot go stale or to disk', async () => {

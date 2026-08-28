@@ -1,5 +1,5 @@
 // Shared helpers for all pages. No framework — plain browser JS.
-import { ICONS, pop, openSheet } from '/ui.js';
+import { ICONS, pop } from '/ui.js';
 import { escAttr, safeUrl } from '/escape.js';
 import { can, canUseAssistant, hasAdminSurface } from '/nav-model.js';
 import { mountNavDrawer } from '/nav-drawer.js';
@@ -79,7 +79,9 @@ export function fmtDay(value) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ── notifications (badge + Alerts sheet) ─────────────────────────────────
+// ── unread badge ─────────────────────────────────────────────────────────
+// One count for both Inbox feeds: unread updates plus unread message threads
+// (see src/api/notifications.js).
 let notifPromise = null;
 export function fetchNotifications(fresh = false) {
   if (!notifPromise || fresh) notifPromise = api('/notifications').catch(() => ({ notifications: [], unread: 0 }));
@@ -92,25 +94,6 @@ function setBadges(unread) {
   });
 }
 
-export async function openAlerts(user) {
-  const body = openSheet('Alerts', '<div class="skel skel-line" data-w="90"></div><div class="skel skel-line" data-w="75"></div>');
-  const { notifications } = await fetchNotifications(true);
-  const caseBase = can(user, 'cases.review') ? '/advisor.html#/case/' : '/portal.html#/case/';
-  const jeBase = can(user, 'je.review') ? '/advisor.html#/banding/' : '/portal.html#/banding/';
-  body.innerHTML = notifications.length
-    ? notifications.map((n) => `
-        <a class="notif-item ${n.read_at ? '' : 'unread'}" href="${n.je_review_id ? `${jeBase}${n.je_review_id}` : n.case_id ? `${caseBase}${n.case_id}` : '#'}">
-          ${esc(n.title)}${n.body ? `<span class="muted small"> — ${esc(n.body)}</span>` : ''}
-          <div class="muted small">${esc(fmtDate(n.created_at))}</div>
-        </a>`).join('')
-    : '<p class="muted small">Nothing yet. Updates about your cases appear here.</p>';
-  // Reading the sheet marks everything read.
-  api('/notifications/read', { method: 'POST' }).then(() => {
-    setBadges(0);
-    fetchNotifications(true);
-  }).catch(() => {});
-}
-
 // ── tab bar ──────────────────────────────────────────────────────────────
 function tabsForRole(user) {
   if (can(user, 'cases.review')) {
@@ -118,7 +101,7 @@ function tabsForRole(user) {
       { id: 'advisor-today', icon: 'today', label: 'Today', href: '/advisor.html#/' },
       { id: 'advisor-queue', icon: 'queue', label: 'Queue', href: '/advisor.html#/queue', also: ['/advisor.html#/banding'] },
       { id: 'assistant', icon: 'chat', label: 'Assistant', action: 'assistant' },
-      { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
+      { id: 'inbox', icon: 'bell', label: 'Inbox', href: '/inbox.html', badge: true },
       { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
     ];
   }
@@ -131,7 +114,7 @@ function tabsForRole(user) {
       tabs.push({ id: 'assistant', icon: 'chat', label: 'Assistant', action: 'assistant' });
     }
     tabs.push(
-      { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
+      { id: 'inbox', icon: 'bell', label: 'Inbox', href: '/inbox.html', badge: true },
       { id: 'account', icon: 'account', label: 'Account', href: '/account.html' }
     );
     return tabs;
@@ -141,7 +124,7 @@ function tabsForRole(user) {
       { id: 'portal-home', icon: 'home', label: 'Home', href: '/portal.html#/' },
       { id: 'portal-cases', icon: 'cases', label: 'Cases', href: '/portal.html#/cases', also: ['/portal.html#/banding'] },
       { id: 'portal-new', icon: 'plus', label: 'Start', href: '/portal.html#/new', accent: true, also: ['/portal.html#/banding/new'] },
-      { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
+      { id: 'inbox', icon: 'bell', label: 'Inbox', href: '/inbox.html', badge: true },
       { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
     ];
   }
@@ -222,8 +205,6 @@ function renderTabBar(user) {
 
   bar.querySelectorAll('.tab-item').forEach((item) =>
     item.addEventListener('click', () => pop(item.querySelector('svg'))));
-  bar.querySelectorAll('[data-action="alerts"]').forEach((b) =>
-    b.addEventListener('click', () => openAlerts(user)));
   bar.querySelectorAll('[data-action="assistant"]').forEach((b) =>
     b.addEventListener('click', () => window.__openAssistant?.()));
 
@@ -237,52 +218,32 @@ function renderTabBar(user) {
 }
 
 // ── header nav ───────────────────────────────────────────────────────────
+// The bar carries no links: brand on the left, Inbox bell and hamburger on the
+// right. Every destination lives in the drawer (/nav-model.js), signed in or
+// out, so there is one navigation surface rather than two saying the same
+// thing. `activeId` is accepted for the callers' sake but no longer used here —
+// the drawer marks its own active entry from the live URL, which is more
+// accurate than an id the page has to remember to pass.
 export async function renderNav(activeId) {
   const nav = document.querySelector('.site-header nav');
   if (!nav) return null;
   const user = await currentUser();
-  const links = [];
-  // Tuples are [id, href, label, className?]. The 4th element exists for
-  // 'nav-keep': styles.css hides header links on mobile for signed-in users
-  // (body.has-tabbar ... a:not(.nav-keep)), so a link that must survive there
-  // has to opt in explicitly.
-  if (!user) {
-    links.push(['faq', '/faq.html', 'Questions', 'nav-keep']);
-    links.push(['login', '/login.html', 'Sign in'], ['register', '/register.html', 'Create account']);
-  } else {
-    if (can(user, 'cases.own')) links.push(['portal', '/portal.html', 'My cases']);
-    if (can(user, 'je.own')) links.push(['banding', '/portal.html#/banding', 'Band review']);
-    if (can(user, 'cases.review')) links.push(['advisor', '/advisor.html', 'Advisor']);
-    if (hasAdminSurface(user)) links.push(['admin', '/admin.html', 'Admin']);
-    links.push(['faq', '/faq.html', 'Questions', 'nav-keep']);
-    links.push(['account', '/account.html', 'Account'], ['logout', '#logout', 'Sign out']);
-  }
-  nav.innerHTML = links
-    .map(([id, href, label, cls = '']) =>
-      `<a href="${href}" data-nav="${id}" class="${id === activeId ? 'active' : ''} ${cls}">${label}</a>`)
-    .join('');
+  nav.innerHTML = '';
 
   if (user) {
-    // Header bell (kept visible on mobile alongside the tab bar).
-    const bell = document.createElement('button');
+    // The bell stays out of the drawer: it carries the unread badge, and a
+    // count behind a menu is a count nobody sees. Alerts and messages share
+    // one Inbox page, so it is a link rather than a sheet.
+    const bell = document.createElement('a');
     bell.className = 'bell-btn';
-    bell.type = 'button';
-    bell.setAttribute('aria-label', 'Alerts');
+    bell.href = '/inbox.html';
+    bell.setAttribute('aria-label', 'Inbox');
     bell.innerHTML = `${ICONS.bell}<span data-alert-badge></span>`;
-    bell.addEventListener('click', () => openAlerts(user));
     nav.appendChild(bell);
-    // Everything else this account can reach — including the sections too deep
-    // for the header links or the five mobile tabs.
-    mountNavDrawer(nav, user, signOut);
   }
-
-  const logout = nav.querySelector('[data-nav="logout"]');
-  if (logout) {
-    logout.addEventListener('click', (e) => {
-      e.preventDefault();
-      signOut();
-    });
-  }
+  // Mounted for everyone — signed-out visitors get Questions, Contact, Sign in
+  // and Create account here instead of in the bar.
+  mountNavDrawer(nav, user, signOut);
 
   if (user) {
     renderTabBar(user);

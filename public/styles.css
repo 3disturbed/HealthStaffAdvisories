@@ -159,31 +159,28 @@ h1 { font-size: var(--fs-xl); letter-spacing: -0.015em; }
 }
 [data-theme="dark"] .site-header { color: var(--ink); }
 .site-header .brand { font-weight: 700; font-size: 1.15rem; color: inherit; text-decoration: none; }
-.site-header nav { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
-.site-header nav a {
-  color: inherit; text-decoration: none; padding: 0.35rem 0.65rem;
-  border-radius: var(--r-sm); font-size: 0.95rem;
-  transition: background-color var(--t-fast);
-}
-.site-header nav a:hover, .site-header nav a.active { background: rgba(255, 255, 255, 0.18); }
-[data-theme="dark"] .site-header nav a:hover,
-[data-theme="dark"] .site-header nav a.active { background: rgba(108, 196, 240, 0.16); }
+/* Only the Inbox bell and the hamburger live here — every destination is in
+   the drawer, so there are no header links to style. */
+.site-header nav { display: flex; gap: 0.35rem; align-items: center; }
 
 .badge-dot {
   display: inline-block; min-width: 1.2rem; padding: 0 0.3rem; text-align: center;
   background: var(--danger); color: #fff; border-radius: var(--r-full);
   font-size: 0.75rem; margin-left: 0.25rem;
 }
+/* An <a> to the Inbox, so it resets the link defaults itself — the nav no
+   longer carries a generic <a> rule to inherit from. */
 .bell-btn {
   position: relative; background: transparent; border: 0; color: inherit;
   cursor: pointer; padding: 0.4rem; border-radius: var(--r-sm); min-height: 44px; min-width: 44px;
+  display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
 }
 .bell-btn svg { width: 22px; height: 22px; }
 .bell-btn .badge-dot { position: absolute; top: 2px; right: 0; margin: 0; }
 
-/* Header hamburger + slide-in drawer (all viewports, signed in).
-   A <button>, not a link, so the mobile rule below that hides
-   `.site-header nav a:not(.nav-keep)` leaves it alone. */
+/* Header hamburger + slide-in drawer (all viewports, signed in or out).
+   With the header links gone, this is the whole of the site's navigation
+   besides the mobile tab bar. */
 .nav-toggle {
   background: transparent; border: 0; color: inherit;
   cursor: pointer; padding: 0.4rem; border-radius: var(--r-sm);
@@ -271,9 +268,6 @@ body.kb-open .tab-bar { transform: translateY(110%); }
 @media (min-width: 768px) {
   .tab-bar { display: none; }
   body.has-tabbar { padding-bottom: 0; }
-}
-@media (max-width: 767.98px) {
-  body.has-tabbar .site-header nav a:not(.nav-keep) { display: none; }
 }
 
 /* Signed-out sticky CTA bar (public pages, mobile) */
@@ -981,3 +975,8 @@ html.js .reveal.revealed { opacity: 1; transform: translateY(0); animation: none
   padding: var(--sp-3); background: var(--bg-inset); min-height: 4rem;
 }
 .md-preview:empty::before { content: "Nothing to preview yet."; color: var(--ink-faint); }
+
+/* ── contact message threads ───────────────────────────────────────────────
+   Bubbles reuse .msg / .msg.member / .msg.advisor from the case thread above;
+   lists reuse .case-list / .case-card. Only the unread marker is new. */
+.case-card.unread { border-left: 4px solid var(--accent); }
