@@ -5,6 +5,9 @@
 ## Product
 
 - [ ] Home page clearly explains service.
+- [ ] FAQ content reviewed for advice-free wording (procedural only: no entitlements, no time limits, no deadline claims).
+- [ ] FAQ AI daily cap (`faq_ai_daily_max`) set for the environment.
+- [ ] Public FAQ verified while signed out: no draft or members-only entry is reachable by list, deep link or search.
 - [ ] Member can create account.
 - [ ] Member can start a case on mobile.
 - [ ] Member can upload supported document.

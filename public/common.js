@@ -11,13 +11,15 @@ if ('serviceWorker' in navigator) {
 // Detect stale assets and self-heal (see /version-check.js).
 import('/version-check.js').then((m) => m.startVersionWatch()).catch(() => {});
 
-export async function api(path, { method = 'GET', body, formData } = {}) {
+export async function api(path, { method = 'GET', body, formData, signal } = {}) {
   const opts = { method, headers: { 'x-requested-with': 'fetch' } };
   if (body !== undefined) {
     opts.headers['content-type'] = 'application/json';
     opts.body = JSON.stringify(body);
   }
   if (formData) opts.body = formData;
+  // Lets a caller cancel a superseded request (see FAQ search in /faq-ui.js).
+  if (signal) opts.signal = signal;
   const res = await fetch(`/api${path}`, opts);
   let data = {};
   try { data = await res.json(); } catch { /* non-JSON error body */ }
@@ -235,7 +237,12 @@ export async function renderNav(activeId) {
   if (!nav) return null;
   const user = await currentUser();
   const links = [];
+  // Tuples are [id, href, label, className?]. The 4th element exists for
+  // 'nav-keep': styles.css hides header links on mobile for signed-in users
+  // (body.has-tabbar ... a:not(.nav-keep)), so a link that must survive there
+  // has to opt in explicitly.
   if (!user) {
+    links.push(['faq', '/faq.html', 'Questions', 'nav-keep']);
     links.push(['login', '/login.html', 'Sign in'], ['register', '/register.html', 'Create account']);
   } else {
     if (can(user, 'cases.own')) links.push(['portal', '/portal.html', 'My cases']);
@@ -243,10 +250,12 @@ export async function renderNav(activeId) {
     if (['users.manage', 'system.admin', 'audit.view', 'knowledge.manage', 'cases.review'].some((p) => can(user, p))) {
       links.push(['admin', '/admin.html', 'Admin']);
     }
+    links.push(['faq', '/faq.html', 'Questions', 'nav-keep']);
     links.push(['account', '/account.html', 'Account'], ['logout', '#logout', 'Sign out']);
   }
   nav.innerHTML = links
-    .map(([id, href, label]) => `<a href="${href}" data-nav="${id}" class="${id === activeId ? 'active' : ''}">${label}</a>`)
+    .map(([id, href, label, cls = '']) =>
+      `<a href="${href}" data-nav="${id}" class="${id === activeId ? 'active' : ''} ${cls}">${label}</a>`)
     .join('');
 
   if (user) {

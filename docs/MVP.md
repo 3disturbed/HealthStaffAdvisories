@@ -21,6 +21,7 @@ Pages:
 - Sign in / create account.
 - Privacy notice.
 - Terms of service.
+- Common questions (FAQ), with AI-assisted search over adviser-written answers.
 - AI transparency statement.
 - Emergency / out-of-scope notice.
 - Contact.

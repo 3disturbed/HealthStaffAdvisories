@@ -9,6 +9,7 @@ export const PERMISSIONS = {
   'cases.notes': 'Read and write private advisor notes',
   'cases.status': 'Change case status, urgency and escalations',
   'knowledge.manage': 'Add and version knowledge sources',
+  'faq.manage': 'Write and publish FAQ answers and categories',
   'users.manage': 'Grant and remove roles/permissions on accounts',
   'audit.view': 'View the audit log',
   'system.admin': 'Operational admin (AI kill switch, dev mailbox)',
@@ -21,8 +22,8 @@ export const PERMISSIONS = {
 
 export const ROLE_DEFAULTS = {
   member: ['cases.own', 'je.own'],
-  advisor: ['cases.review', 'cases.respond', 'cases.notes', 'cases.status', 'knowledge.manage', 'je.review', 'je.decide'],
-  admin: ['users.manage', 'audit.view', 'system.admin', 'knowledge.manage', 'je.reference.manage', 'je.monitor'],
+  advisor: ['cases.review', 'cases.respond', 'cases.notes', 'cases.status', 'knowledge.manage', 'faq.manage', 'je.review', 'je.decide'],
+  admin: ['users.manage', 'audit.view', 'system.admin', 'knowledge.manage', 'faq.manage', 'je.reference.manage', 'je.monitor'],
 };
 
 export const ROLES = Object.keys(ROLE_DEFAULTS);

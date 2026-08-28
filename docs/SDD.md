@@ -110,6 +110,20 @@ flowchart LR
 - AuditEvent.
 - SecurityEvent.
 
+### Help / FAQ
+
+Adviser-authored help content, surfaced publicly and inside the portal.
+
+- `src/services/faqActions.js` — CRUD plus `faqScope()`, the single authority for
+  who sees which rows. Every read path builds its `WHERE` from it.
+- `src/services/faqSearch.js` — deterministic FTS5 shortlist; the path that must
+  always work.
+- `src/ai/faqSearch.js` — optional LLM re-rank returning ids only.
+- `src/api/faq.js` — router. The public read and search routes are deliberately
+  unauthenticated; `faqScope()` is the access control, not middleware.
+- `public/markdown.js` — the light markdown renderer. Escapes the whole string
+  before any transform, and emits only `p/br/ul/li/strong/a`.
+
 ## 4. Domain model
 
 Simplified:
@@ -273,6 +287,30 @@ Visibility values must differentiate:
 - resolved_at
 - resolved_by
 
+### FAQ entities
+
+- `faq_categories` — slug, name, description, seq, status (draft|published),
+  visibility (public|members).
+- `faq_questions` — category_id, globally-unique slug (so a published link
+  survives re-filing), question, answer, keywords, seq, status, visibility,
+  view/helpful counters, published_at.
+- `faq_fts` — FTS5 over question/answer/keywords.
+
+FAQ entries are edited IN PLACE, unlike `knowledge_versions`, which supersedes.
+That model exists to protect citation integrity: `citations.chunk_id` and the
+frozen retrieval trace in `ai_outputs.output_json` mean mutating a chunk would
+change what a closed case cited. Nothing can reference a `faq_questions.id`, and
+FAQ rows are not in `retrieveChunks()`, so an edit cannot alter a stored
+artefact. **If FAQ content is ever quoted into a case message or added to
+retrieval, that reasoning lapses and versioning becomes mandatory.**
+
+Because entries are edited, `faq_fts` carries an `AFTER UPDATE` trigger that
+`knowledge_chunks` and `je_profiles` do not need. Without it the index keeps the
+pre-edit text while the row returns the new one, so a search for the old wording
+matches and renders the new answer. Note that `integrity-check` only detects
+this with the `rank = 1` argument; the no-arg and `rank = 0` forms pass silently
+on a stale index.
+
 ## 7. API style
 
 JSON HTTP API or Next.js server actions are both acceptable.
@@ -389,6 +427,26 @@ Every AI output stores:
 - user/advisor corrections.
 
 This makes regressions and incident investigation possible.
+
+### Documented exception: FAQ search writes no `ai_outputs` row
+
+Every other AI task stores provider/model/prompt_version and its output. The FAQ
+re-rank deliberately does not, for four reasons:
+
+1. `ai_outputs` rows are cleaned up only by their case/JE parent's
+   `ON DELETE CASCADE`. A FAQ row has neither parent, so rows from an
+   unauthenticated endpoint would accumulate without bound.
+2. Every consumer scopes by `case_id`/`je_review_id`, so the rows would be
+   invisible to readers while still inflating the table they scan.
+3. Making a row useful would mean storing the member's free-text search query,
+   which AGENTS.md forbids.
+4. There is no claim to trace: the model returns an ordering of ids, each
+   discarded unless we supplied it, and 100% of the prose read by the member is
+   adviser-written and unmodified.
+
+`promptVersion`, `model` and `aiUsed` are returned in the response body instead,
+and cost is bounded by a per-IP budget plus a global daily cap in `settings`
+(`faq_ai_daily_max`).
 
 ## 13. Security
 

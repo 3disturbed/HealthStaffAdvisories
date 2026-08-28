@@ -222,6 +222,23 @@ Every source record should contain:
 
 A superseded source remains auditable but must not be preferred for new answers unless the question concerns the historical period.
 
+## Help content management
+
+Advisers (`faq.manage`, default on for advisor and admin) author FAQ questions
+and categories in Admin -> FAQ. Content is plain text plus a light markdown
+subset — paragraphs, bullets, bold, links — never HTML.
+
+Each entry and category carries a lifecycle (`draft` -> `published`) and a
+visibility (`public` | `members`). Effective visibility is the **most
+restrictive of the entry and its category**, so a public entry filed under a
+members-only category stays members-only. Drafts appear nowhere but the CMS.
+
+Published public entries appear on `/faq.html`, readable with no account.
+Members additionally see members-only entries inside the portal. Search is
+keyword-first (FTS5); where an API key is configured the model re-ranks the
+shortlist by returning entry ids, and the reader always sees the adviser's
+approved wording.
+
 ## Access tiers
 
 Build entitlements generically.

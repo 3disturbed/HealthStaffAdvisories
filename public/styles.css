@@ -367,6 +367,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .tabs button.active { background: var(--c-brand); color: #fff; border-color: var(--c-brand); }
 [data-theme="dark"] .tabs button.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
+/* One-line scrolling variant: used by the Account tabs, where five pills
+   overflow the narrow column and a wrapped second row reads badly. */
+.tabs.scroll {
+  flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity;
+  scrollbar-width: none; -ms-overflow-style: none;
+  /* room for the focus ring, which the overflow would otherwise clip */
+  padding: 3px; margin: -3px -3px calc(var(--sp-4) - 3px);
+}
+.tabs.scroll::-webkit-scrollbar { display: none; }
+.tabs.scroll button { flex: 0 0 auto; scroll-snap-align: start; }
+
 /* Chat */
 .msg { margin-bottom: 0.8rem; padding: 0.7rem 0.9rem; border-radius: 18px; max-width: 92%; }
 .msg .who { font-size: var(--fs-xs); color: var(--ink-muted); margin-bottom: 0.2rem; }
@@ -848,3 +859,60 @@ html.js .reveal.revealed { opacity: 1; transform: translateY(0); animation: none
   a { color: #000; text-decoration: none; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; }
 }
+
+/* ═══ FAQ ═══════════════════════════════════════════════════════════════════
+   Every value here is an existing token, so dark mode needs NO additions:
+   neither the [data-theme="dark"] block nor the prefers-color-scheme fallback
+   is touched. Keep it that way — if you reach for a colour literal, add a
+   token instead. Motion is transition-only, so the global
+   prefers-reduced-motion rule already neutralises it.
+   ────────────────────────────────────────────────────────────────────────── */
+.faq-toc { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+.faq-toc a {
+  background: var(--bg-inset); border: 1px solid var(--line); border-radius: var(--r-full);
+  padding: 0.25rem 0.7rem; font-size: var(--fs-sm); color: var(--link); text-decoration: none;
+}
+.faq-toc a:hover { border-color: var(--line-strong); }
+
+.faq-category { margin-bottom: var(--sp-6); scroll-margin-top: 4.5rem; }
+.faq-category > h2 { font-size: var(--fs-lg); margin-bottom: var(--sp-2); }
+
+/* Padding moves onto summary/body so the whole header row is the hit target. */
+.faq-entry { padding: 0; scroll-margin-top: 4.5rem; }
+.faq-entry > summary {
+  padding: var(--sp-3) var(--sp-4); cursor: pointer; font-weight: 600;
+  list-style: none; display: flex; gap: var(--sp-2); align-items: baseline;
+}
+.faq-entry > summary::-webkit-details-marker { display: none; }
+.faq-entry > summary::before {
+  content: "\25B8"; color: var(--ink-faint); flex-shrink: 0;
+  transition: transform var(--t-quick) var(--ease-out);
+}
+.faq-entry[open] > summary::before { transform: rotate(90deg); }
+.faq-entry[open] > summary { border-bottom: 1px solid var(--line); }
+.faq-entry.targeted { box-shadow: 0 0 0 3px var(--focus-ring); }
+
+.faq-answer { padding: var(--sp-3) var(--sp-4); }
+.faq-answer > p:first-child { margin-top: 0; }
+.faq-answer ul { margin: 0.4rem 0; padding-left: 1.2rem; }
+.faq-answer li { margin: 0.2rem 0; }
+.faq-answer a { overflow-wrap: anywhere; }
+.faq-anchor { color: var(--ink-faint); font-size: var(--fs-sm); text-decoration: none; }
+.faq-anchor:hover { text-decoration: underline; }
+
+.faq-search { position: relative; margin-bottom: var(--sp-1); }
+.faq-search input { padding-right: 2.5rem; }
+.faq-search.searching::after {
+  content: ""; position: absolute; right: 0.9rem; top: 50%; width: 1rem; height: 1rem;
+  margin-top: -0.5rem; border: 2px solid var(--line-strong); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+/* Reserves a line so results do not jump when the status text appears. */
+.faq-search-state { min-height: 1.4rem; margin: 0 0 var(--sp-4); }
+.faq-results.stale { opacity: 0.55; transition: opacity var(--t-fast) var(--ease-out); }
+
+.md-preview {
+  border: 1px dashed var(--line-strong); border-radius: var(--r-md);
+  padding: var(--sp-3); background: var(--bg-inset); min-height: 4rem;
+}
+.md-preview:empty::before { content: "Nothing to preview yet."; color: var(--ink-faint); }

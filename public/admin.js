@@ -12,9 +12,10 @@ const TAB_DEFS = () => {
   const tabs = [['overview', 'Overview']];
   if (can(user, 'users.manage')) tabs.push(['users', 'Users & permissions']);
   if (canUseAssistant()) tabs.push(['assistant', 'Assistant']);
-  if (can(user, 'system.admin')) tabs.push(['settings', 'AI settings'], ['mailbox', 'Dev mailbox']);
+  if (can(user, 'system.admin')) tabs.push(['membership', 'Membership'], ['settings', 'AI settings'], ['mailbox', 'Dev mailbox']);
   if (can(user, 'knowledge.manage')) tabs.push(['knowledge', 'Knowledge sources']);
   if (['je.reference.manage', 'je.monitor'].some((p) => can(user, p))) tabs.push(['banding', 'Job evaluation']);
+  if (can(user, 'faq.manage')) tabs.push(['faq', 'FAQ']);
   if (can(user, 'audit.view')) tabs.push(['audit', 'Audit log']);
   return tabs;
 };
@@ -45,6 +46,7 @@ async function renderOverview() {
   if (can(user, 'system.admin')) wants.push(['settings', api('/admin/settings')]);
   else if (canUseAssistant()) wants.push(['assistant', api('/admin/assistant')]);
   if (can(user, 'knowledge.manage')) wants.push(['knowledge', api('/knowledge/sources')]);
+  if (can(user, 'faq.manage')) wants.push(['faq', api('/faq/manage')]);
   if (can(user, 'audit.view')) wants.push(['audit', api('/admin/audit')]);
 
   const results = Object.fromEntries(
@@ -69,6 +71,11 @@ async function renderOverview() {
   if (results.knowledge) {
     const n = results.knowledge.sources.length;
     tiles.push({ hash: '#/knowledge', num: n, label: `knowledge source${n === 1 ? '' : 's'}` });
+  }
+  if (results.faq) {
+    const published = results.faq.questions.filter((q) => q.status === 'published').length;
+    const drafts = results.faq.questions.length - published;
+    tiles.push({ hash: '#/faq', num: published, label: `published answer${published === 1 ? '' : 's'}${drafts ? ` · ${drafts} draft` : ''}` });
   }
 
   view.innerHTML = `
@@ -169,6 +176,161 @@ async function renderUsers() {
 }
 
 // ── Assistant ────────────────────────────────────────────────────────────
+// ── Membership: tiers, Stripe keys, CV weights, ledger, comps ────────────
+async function renderMembership() {
+  view.innerHTML = `<h1>Admin</h1>${tabsBar('membership')}${skelTable(4)}`;
+  wireTabs();
+  const [{ tiers }, settings, ledger, billing] = await Promise.all([
+    api('/admin/tiers'), api('/admin/settings'), api('/admin/ledger'), api('/admin/members-billing'),
+  ]);
+  const pounds = (pence) => `£${(pence / 100).toFixed(2)}`;
+
+  view.innerHTML = `
+    <h1>Admin</h1>${tabsBar('membership')}
+    <div id="msg"></div>
+
+    <div class="card">
+      <h3 class="mt0">Tiers</h3>
+      <p class="small muted">Prices and daily AI allowances apply immediately — no deploy needed. Members are never rejected when their allowance runs out; their AI requests queue until it frees.</p>
+      ${tiers.map((t) => `
+        <form class="perm-item" data-tier-form="${escAttr(t.id)}">
+          <div class="perm-head"><strong>${esc(t.id)}</strong>
+            <label class="small"><input type="checkbox" name="active" ${t.active ? 'checked' : ''}> active</label></div>
+          <label>Name</label><input name="name" type="text" value="${escAttr(t.name)}" maxlength="40">
+          <label>Price (pence / month)</label><input name="price" type="text" inputmode="numeric" value="${escAttr(t.pricePence)}">
+          <label>AI analyses / 24h</label><input name="allowance" type="text" inputmode="numeric" value="${escAttr(t.aiDailyAllowance)}">
+          <p><button class="btn small" type="submit">Save ${esc(t.id)}</button></p>
+        </form>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3 class="mt0">Stripe</h3>
+      <p>Status: ${settings.stripeConfigured ? '<span class="tag role">connected</span>' : '<span class="tag high">no keys</span>'}
+        ${settings.stripeTestMode ? '<span class="tag critical">TEST MODE</span>' : ''}</p>
+      ${settings.stripeKeyMasked ? `<p class="small muted">Secret key: ${esc(settings.stripeKeyMasked)} · Webhook: ${esc(settings.stripeWebhookMasked || 'not set')}</p>` : ''}
+      <form id="stripe-form">
+        <label for="stripeKey">Secret key</label>
+        <input id="stripeKey" type="password" autocomplete="off" placeholder="sk_live_… or sk_test_…">
+        <label for="stripeWhsec">Webhook signing secret</label>
+        <p class="hint">Local testing: <code>stripe listen --forward-to localhost:3000/api/stripe/webhook</code> prints one.</p>
+        <input id="stripeWhsec" type="password" autocomplete="off" placeholder="whsec_…">
+        <p><button class="btn" type="submit">Save Stripe keys</button>
+        ${settings.stripeConfigured ? '<button class="btn danger" type="button" id="clear-stripe">Disconnect</button>' : ''}</p>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 class="mt0">Cost-to-Value weights <span class="muted small">(pence per unit of usage)</span></h3>
+      <form id="cv-form">
+        <label>AI analysis</label><input name="ai" type="text" inputmode="numeric" value="${escAttr(settings.cvWeights.ai)}">
+        <label>Kelly reply</label><input name="reply" type="text" inputmode="numeric" value="${escAttr(settings.cvWeights.reply)}">
+        <label>Document</label><input name="doc" type="text" inputmode="numeric" value="${escAttr(settings.cvWeights.doc)}">
+        <label>Open case</label><input name="case" type="text" inputmode="numeric" value="${escAttr(settings.cvWeights.case)}">
+        <p><button class="btn small" type="submit">Save weights</button></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 class="mt0">Members</h3>
+      <div class="table-scroll"><table class="data">
+        <thead><tr><th>Member</th><th>Band</th><th>Tier</th><th>Renews</th><th>Paid</th><th>Est. usage</th><th>CV</th></tr></thead>
+        <tbody>${billing.members.map((m) => `
+          <tr>
+            <td class="small">${esc(m.displayName)}<br><span class="muted">${esc(m.email)}</span></td>
+            <td class="small">${esc(m.payBand ? m.payBand.replace('band_', '') : '—')}</td>
+            <td class="small">${esc(m.tier)}</td>
+            <td class="small">${m.renewsAt ? esc(fmtDate(m.renewsAt)) : '—'}</td>
+            <td class="small">${pounds(m.paidPence)}</td>
+            <td class="small">${pounds(m.estCostPence)}</td>
+            <td class="small"><strong>${m.cv}</strong></td>
+          </tr>`).join('')}</tbody>
+      </table></div>
+      <details>
+        <summary><strong>Grant complimentary membership</strong></summary>
+        <form id="comp-form">
+          <label>Member</label>
+          <select name="userId">${billing.members.map((m) => `<option value="${escAttr(m.id)}">${esc(m.displayName)} (${esc(m.email)})</option>`).join('')}</select>
+          <label>Tier</label>
+          <select name="tierId">${tiers.filter((t) => t.active).map((t) => `<option value="${escAttr(t.id)}">${esc(t.name)}</option>`).join('')}</select>
+          <label>Months</label><input name="months" type="text" inputmode="numeric" value="1">
+          <label>Note</label><input name="note" type="text" maxlength="200">
+          <p><button class="btn small" type="submit">Grant</button></p>
+        </form>
+      </details>
+    </div>
+
+    <div class="card">
+      <h3 class="mt0">Ledger <span class="muted small">(latest ${ledger.payments.length})</span></h3>
+      <div class="table-scroll"><table class="data">
+        <thead><tr><th>When</th><th>Member</th><th>Kind</th><th>Tier</th><th>Amount</th><th>Period</th></tr></thead>
+        <tbody>${ledger.payments.map((p) => `
+          <tr>
+            <td class="small">${esc(fmtDate(p.created_at))}</td>
+            <td class="small">${esc(p.user_email)}</td>
+            <td class="small">${esc(p.kind)}</td>
+            <td class="small">${esc(p.tier_name)}</td>
+            <td class="small">${pounds(p.amount_pence)}</td>
+            <td class="small">${esc(fmtDate(p.period_start))} → ${esc(fmtDate(p.period_end))}</td>
+          </tr>`).join('') || '<tr><td class="muted small" colspan="6">No payments yet.</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+  enterView(view);
+  wireTabs();
+
+  view.querySelectorAll('[data-tier-form]').forEach((form) =>
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      setBusy(btn, true);
+      api(`/admin/tiers/${form.dataset.tierForm}`, {
+        method: 'POST',
+        body: {
+          name: form.elements.name.value,
+          pricePence: Number(form.elements.price.value),
+          aiDailyAllowance: Number(form.elements.allowance.value),
+          active: form.elements.active.checked,
+        },
+      }).then(() => { toast('ok', 'Tier saved — pricing is live.'); renderMembership(); })
+        .catch((err) => { setBusy(btn, false); oops(err); });
+    }));
+
+  document.getElementById('stripe-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const body = {};
+    if (document.getElementById('stripeKey').value.trim()) body.stripeSecretKey = document.getElementById('stripeKey').value.trim();
+    if (document.getElementById('stripeWhsec').value.trim()) body.stripeWebhookSecret = document.getElementById('stripeWhsec').value.trim();
+    if (!Object.keys(body).length) return oops(new Error('Paste at least one key to save.'));
+    setBusy(btn, true);
+    api('/admin/settings', { method: 'POST', body })
+      .then(() => { toast('ok', 'Stripe keys saved.'); renderMembership(); })
+      .catch((err) => { setBusy(btn, false); oops(err); });
+  });
+  document.getElementById('clear-stripe')?.addEventListener('click', () => {
+    if (!window.confirm('Disconnect Stripe? Members will not be able to pay until new keys are added.')) return;
+    api('/admin/settings', { method: 'POST', body: { clearStripeKeys: true } })
+      .then(() => { toast('ok', 'Stripe disconnected.'); renderMembership(); }).catch(oops);
+  });
+
+  document.getElementById('cv-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    api('/admin/settings', {
+      method: 'POST',
+      body: { cvWeightAi: Number(f.ai.value), cvWeightReply: Number(f.reply.value), cvWeightDoc: Number(f.doc.value), cvWeightCase: Number(f.case.value) },
+    }).then(() => { toast('ok', 'Weights saved.'); renderMembership(); }).catch(oops);
+  });
+
+  document.getElementById('comp-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    api('/admin/comp', {
+      method: 'POST',
+      body: { userId: Number(f.userId.value), tierId: f.tierId.value, months: Number(f.months.value), note: f.note.value },
+    }).then(() => { toast('ok', 'Membership granted.'); renderMembership(); }).catch(oops);
+  });
+}
+
 async function renderAssistant() {
   view.innerHTML = `
     <h1>Admin</h1>${tabsBar('assistant')}
@@ -378,9 +540,16 @@ async function route() {
     if (tab === 'overview') await renderOverview();
     else if (tab === 'users') await renderUsers();
     else if (tab === 'assistant') await renderAssistant();
+    else if (tab === 'membership') await renderMembership();
     else if (tab === 'settings') await renderSettings();
     else if (tab === 'mailbox') await renderMailbox();
     else if (tab === 'knowledge') await renderKnowledge();
+    else if (tab === 'faq') {
+      view.innerHTML = `<h1>Admin</h1>${tabsBar('faq')}<p class="muted">Loading\u2026</p>`;
+      wireTabs();
+      const m = await import('/faq-admin.js');
+      await m.renderAdminTab(view, user, { tabsBar, wireTabs });
+    }
     else if (tab === 'banding') {
       view.innerHTML = `<h1>Admin</h1>${tabsBar('banding')}<p class="muted">Loading\u2026</p>`;
       wireTabs();
@@ -396,7 +565,11 @@ async function route() {
 
 user = await requireUser('admin');
 if (user) {
-  if (!can(user, 'users.manage') && !can(user, 'system.admin') && !can(user, 'knowledge.manage') && !can(user, 'audit.view') && !canUseAssistant()) {
+  // Derived from TAB_DEFS() rather than a hand-maintained permission list:
+  // that list had already drifted (a je.monitor-only account was locked out of
+  // the Job evaluation tab it could see). TAB_DEFS() always yields 'overview',
+  // so anything beyond that means this account has a real admin surface.
+  if (TAB_DEFS().length <= 1) {
     view.innerHTML = '<div class="notice error">Your account does not have access to this area.</div>';
   } else {
     window.addEventListener('hashchange', route);

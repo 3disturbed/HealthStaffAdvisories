@@ -223,6 +223,31 @@ Admin can disable AI generation while keeping case portal available.
 ### K4 — White label — P3
 ### K5 — Organisation analytics — P3
 
+## EPIC L — Help & FAQ
+
+### L1 — Advisor FAQ CMS — P1
+Advisors create, edit, reorder, publish and delete FAQ questions and categories
+from Admin -> FAQ. Answers are plain text plus a light markdown subset; no HTML
+is stored or rendered. Permission: `faq.manage` (advisor + admin by default).
+
+### L2 — Public questions page — P1
+`/faq.html` renders published public entries with no account, grouped by
+category, with deep links per entry and per category.
+
+### L3 — Members-only entries — P1
+An entry or a whole category can be marked members-only and then appears only
+inside the portal, never on the public page. Effective visibility is the most
+restrictive of the entry and its category.
+
+### L4 — AI-assisted find — P1
+FTS5 shortlists; the model re-ranks and returns entry ids only. It never writes,
+summarises or edits an answer. Degrades to plain keyword search when no key is
+configured, when the kill switch is on, or when the provider fails.
+
+### L5 — Helpfulness signal — P2
+Per-entry view and helpful/not-helpful counters so advisers can see which
+answers work. No search-query text is stored (see AI-SAFETY-DATA).
+
 ## First 20 engineering tickets
 
 1. Repository, CI and environment bootstrapping.

@@ -35,7 +35,7 @@ test('entry documents are never cached, so a new build is always discoverable', 
 });
 
 test('scripts and styles must revalidate before reuse', async () => {
-  for (const asset of ['/common.js', '/escape.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
+  for (const asset of ['/common.js', '/escape.js', '/markdown.js', '/faq.js', '/faq-ui.js', '/faq-admin.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
     const res = await fetch(base + asset);
     assert.equal(res.status, 200, `${asset} should be served`);
     assert.equal(res.headers.get('cache-control'), 'no-cache', `${asset} should revalidate`);
@@ -79,4 +79,28 @@ test('the build fingerprint changes when a client asset changes', async () => {
   } finally {
     fs.writeFileSync(target, original);
   }
+});
+
+test('the public FAQ page is an uncached entry document, reachable without a session', async () => {
+  for (const url of ['/faq.html', '/faq']) {
+    const res = await fetch(base + url);
+    assert.equal(res.status, 200, `${url} should be served`);
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+    assert.equal(res.headers.get('x-app-version'), BUILD_VERSION);
+  }
+});
+
+test('the public FAQ API answers with no cookie at all', async () => {
+  const res = await fetch(`${base}/api/faq`);
+  assert.equal(res.status, 200, 'the FAQ must be readable while signed out');
+  const data = await res.json();
+  assert.ok(Array.isArray(data.questions));
+  assert.equal(data.level, 'public');
+});
+
+test('the FAQ page ships no inline script or handler, so the strict CSP holds', async () => {
+  const html = await (await fetch(`${base}/faq.html`)).text();
+  const inline = [...html.matchAll(/<script\b([^>]*)>/g)].filter((m) => !/\ssrc=/.test(m[1]));
+  assert.deepEqual(inline, [], 'inline <script> is blocked by the CSP');
+  assert.ok(!/\son(click|load|error|focus)\s*=/i.test(html), 'inline event handlers are blocked by the CSP');
 });

@@ -1,0 +1,103 @@
+{
+  "categories": [
+    {
+      "slug": "getting-started",
+      "name": "Getting started",
+      "description": "What Kelly Online is and what happens when you ask for help.",
+      "seq": 10,
+      "visibility": "public",
+      "questions": [
+        {
+          "slug": "what-is-kelly-online",
+          "question": "What is Kelly Online?",
+          "answer": "Kelly Online is an employment support service for NHS staff. You explain a workplace issue in ordinary language and upload any documents you have.\n\nAI prepares a plain-English summary of your situation and organises your evidence. **Kelly, a human adviser, then reviews that preparation** and writes back to you.\n\nThe AI never replaces Kelly and never sends you an answer on its own.",
+          "keywords": "about, what is this, service, how it works",
+          "visibility": "public"
+        },
+        {
+          "slug": "what-happens-after-i-explain-my-issue",
+          "question": "What happens after I explain my issue?",
+          "answer": "Your case moves through a few steps:\n\n- You describe what happened and add any documents.\n- AI prepares a summary and lists anything still missing.\n- Kelly reviews the prepared case and checks the detail.\n- Kelly writes back with a response in your portal.\n\nYou can add more information at any point, and you will be told when there is a reply waiting.",
+          "keywords": "next steps, process, timeline, what now",
+          "visibility": "public"
+        },
+        {
+          "slug": "do-i-need-an-account",
+          "question": "Do I need an account?",
+          "answer": "You need a free account to start a case, upload documents or receive a reply, because those things are private to you.\n\nYou do not need an account to read these questions.",
+          "keywords": "register, sign up, login, free",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "slug": "your-case",
+      "name": "Your case and your documents",
+      "description": "How your case works and who can see it.",
+      "seq": 20,
+      "visibility": "public",
+      "questions": [
+        {
+          "slug": "what-documents-should-i-upload",
+          "question": "What documents should I upload?",
+          "answer": "Anything that helps explain what happened. Common examples:\n\n- Letters or emails from your employer\n- Meeting invitations and notes\n- Your contract or job description\n- Policies your employer has referred to\n\nUpload what you have. A missing document does not stop you starting, and you will be told if something important is missing.",
+          "keywords": "upload, evidence, files, attachments, pdf",
+          "visibility": "public"
+        },
+        {
+          "slug": "who-can-see-my-case",
+          "question": "Who can see my case?",
+          "answer": "You and the advisers working on your case. Other members can never see it.\n\nWhat you write is used to prepare and answer your own case. It is not added to any shared or public information.",
+          "keywords": "privacy, confidential, who reads, data, secure",
+          "visibility": "public"
+        },
+        {
+          "slug": "how-do-i-ask-a-follow-up-question",
+          "question": "How do I ask a follow-up question on my case?",
+          "answer": "Open the case from **My cases** and add a message to the case thread. It goes to the same adviser, with all the earlier context attached.\n\nKeep follow-ups on the existing case rather than starting a new one, so nothing gets separated from its history.",
+          "keywords": "reply, follow up, message, respond, add information",
+          "visibility": "members"
+        }
+      ]
+    },
+    {
+      "slug": "urgent-help",
+      "name": "Urgent situations",
+      "description": "What to do when something is happening today or tomorrow.",
+      "seq": 30,
+      "visibility": "public",
+      "questions": [
+        {
+          "slug": "i-have-a-meeting-tomorrow",
+          "question": "I have a meeting tomorrow — what should I do?",
+          "answer": "Do not rely on this portal alone for something happening immediately.\n\nStart your case and say clearly in your first message that the meeting is tomorrow, so it is seen as urgent. Then read the [urgent help page](/emergency.html), which lists the routes to same-day support.\n\nIf you are in immediate danger, call 999.",
+          "keywords": "urgent, tomorrow, emergency, hearing, meeting, deadline, today",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "slug": "ai-and-privacy",
+      "name": "AI and your privacy",
+      "description": "How AI is used here, and what it is never allowed to do.",
+      "seq": 40,
+      "visibility": "public",
+      "questions": [
+        {
+          "slug": "how-is-ai-used",
+          "question": "How is AI used on this service?",
+          "answer": "AI is used to prepare, not to decide. It summarises what you have written, organises your documents and points out what is missing, so that Kelly can spend her time on your actual problem.\n\nAI does not write the reply you receive, does not decide the outcome of your case, and never pretends to be Kelly.",
+          "keywords": "artificial intelligence, chatgpt, automated, robot, machine",
+          "visibility": "public"
+        },
+        {
+          "slug": "does-ai-write-these-answers",
+          "question": "Does AI write these FAQ answers?",
+          "answer": "No. Every answer on this page is written by an adviser.\n\nWhen you search, AI may be used to put the existing answers in a more useful order. It cannot write, edit or summarise an answer — you always read the adviser's own wording.",
+          "keywords": "faq, search, ranking, written by, generated",
+          "visibility": "public"
+        }
+      ]
+    }
+  ]
+}

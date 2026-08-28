@@ -95,6 +95,7 @@ async function renderHome() {
       <a class="btn" href="#/new">Start a case</a>
       ${open.length ? `<button class="btn secondary" type="button" id="quick-evidence">Add evidence</button>` : '<a class="btn secondary" href="#/cases">My cases</a>'}
     </div>
+    <p class="small right mt0"><a href="#/faq">Common questions &rarr;</a></p>
     ${installPanel({ variant: 'card' })}
     ${cases.length === 0 ? emptyState({
       icon: 'folderPlus',
@@ -278,7 +279,15 @@ function renderWizard() {
 }
 
 // ── AI intake card (labels verbatim) ────────────────────────────────────
-function intakeCard(intake) {
+function intakeCard(intake, aiQueue) {
+  if (!intake && aiQueue?.status === 'queued') {
+    const when = aiQueue.expectedAt
+      ? new Date(aiQueue.expectedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      : 'shortly';
+    return `
+      <div class="card"><h3 class="mt0"><span class="tag ai">AI</span> Your AI summary is queued</h3>
+      <p class="muted small">You've used today's included AI analyses, so this one is waiting its turn — expected around <strong>${esc(when)}</strong>. It will run automatically; nothing is lost. Kelly reviews anything important either way.</p></div>`;
+  }
   if (!intake) return `
     <div class="card"><h3 class="mt0"><span class="tag ai">AI</span> Making sense of your case</h3>
     <p class="muted small" id="intake-pending">If AI assistance is enabled, an initial explanation appears here shortly — refresh in a few seconds. Kelly reviews anything important either way.</p></div>`;
@@ -382,7 +391,7 @@ async function renderCase(id, { silent = false } = {}) {
         </div>
         <p class="small muted mt0">Dates are collected from your account and documents — Kelly confirms what matters.</p>
       </div>` : ''}
-    ${intakeCard(intake)}
+    ${intakeCard(intake, data.aiQueue)}
     <div class="card">
       <h3>Conversation</h3>
       <div id="thread">${thread || '<p class="muted small">Your case has been received — updates appear here.</p>'}</div>
@@ -468,6 +477,17 @@ async function route() {
       view.innerHTML = '<p class="muted">Loading\u2026</p>';
       const m = await import('/banding-member.js');
       await m.route(view, user, hash);
+    } else if (hash === '#/faq' || hash.startsWith('#/faq/')) {
+      // Members see public entries plus the members-only ones; the server
+      // decides that from the session, never from anything the client sends.
+      const m = await import('/faq-ui.js');
+      await m.renderFaqSection(view, {
+        user,
+        hash,
+        linkBase: '#/faq',
+        heading: 'Common questions',
+        intro: 'Answers written by advisers, including some only visible to members.',
+      });
     } else if (caseMatch) {
       await renderCase(Number(caseMatch[1]));
       if (caseMatch[2]) openEvidenceSheet(Number(caseMatch[1]));

@@ -45,6 +45,7 @@ Full scope and acceptance criteria: [docs/MVP.md](docs/MVP.md).
 
 - **Runtime:** Node.js 22.13+ with Express.
 - **Database:** SQLite via the built-in `node:sqlite` module (no native build step), with full-text search (FTS5) for retrieval.
+- **Help content:** an adviser-managed FAQ (Admin → FAQ) published to a public `/faq.html` and to a members-only section in the portal, with FTS5 search that the LLM re-ranks by returning entry ids only — answers are always the adviser's own wording.
 - **Frontend:** vanilla HTML5/CSS/JS, mobile-first, served from `public/`.
 - **Provider adapters:**
   - **LLM:** OpenAI, configured entirely from the Admin area (API key and model are stored in application settings — no key in code or `.env`). Until a key is saved, AI intake is off and the case loop still works.

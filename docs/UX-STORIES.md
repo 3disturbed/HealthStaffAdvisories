@@ -190,11 +190,23 @@ Multi-role accounts get the highest workspace's tabs (advisor > admin > member);
 
 - `GET /api/advisor/queue`: additive `lastMessageBy` / `lastMessageAt` per card (powers K1's "Member replied" bucket).
 - Everything else is client-only: theme (localStorage + pre-paint boot script), tab bar, sheets, wizard, journey mapping, overview tiles composed from existing endpoints.
+- FAQ: the whole `/api/faq/*` surface is new and additive. `GET /api/faq`, `GET /api/faq/questions/:slug` and `POST /api/faq/search` are **deliberately unauthenticated** — `faqScope()` is the access control, not middleware — and every response is `Cache-Control: no-store` because the body varies by session. Management routes require the new `faq.manage` permission. New client modules: `/markdown.js`, `/faq-ui.js`, `/faq.js`, `/faq-admin.js`. `renderNav`'s links array widens from `[id, href, label]` to `[id, href, label, cls?]`, and `api()` accepts an optional `signal`.
 - Band reviews: the whole `/api/je/*` surface is new and additive (reviews, answers, documents, comparators, messages, factors, sign-off, reports, decisions, queue, oversight, reference, offer); `notifications` gains nullable `je_review_id`; `ai_outputs` gains nullable `je_review_id`/`je_stage` (case_id now nullable via rebuild migration v3); `POST /api/cases` adds `jeInterest` to its response.
+
+## Help & FAQ
+
+- **Visitor, no account.** "Before I hand over anything personal, I want to know what this is and what happens next." Opens `/faq.html` from the header or any footer, searches in plain words, reads a full answer without clicking through, and can link a friend straight to it.
+- **Member.** "I have a question that is not worth a case." Opens Common questions from the portal home or `#/faq` and sees the public answers plus members-only ones, badged so it is obvious which are not public.
+- **Kelly.** "I keep retyping the same explanation." Writes it once in Admin → FAQ with a live preview, saves it as a draft, publishes when happy, and reorders so the question people actually ask sits first.
+
+Nav: a **Questions** link in the header for everyone, signed in or not (tagged
+`nav-keep` so it survives the mobile tab-bar rule), plus a footer link on every
+public page. No sixth mobile tab — six tabs at 375px is too narrow for icon
+plus label.
 
 ## Must not regress
 
-Permission gating (tab bar from the same `can()` checks); AI labelling and safety notices verbatim; assistant approve-before-send; urgent-help banners (may move earlier, never later or smaller); PII-redaction warnings; request-review gating; private-note visibility; API contracts (additive only); strict CSP (no inline styles/scripts); the cache-versioning self-heal. Band reviews add: the case wizard's 7 steps and single `POST /api/cases` body shape survive the wizard-engine extraction (M2); nothing from a band assessment reaches a member before sign-off + approval; comparator anonymity by default; the reference ruleset label/checksum/verification status on every assessment screen and report footer; the print palette reset applying in dark mode; no scheme constant (factor, points, band boundary) in application code — reference data only.
+Permission gating (tab bar from the same `can()` checks); FAQ visibility (anonymous must never receive a draft or members-only entry, through list, deep link or search); the FAQ markdown renderer's escape-before-transform order and its `p/br/ul/li/strong/a` output allow-list; FAQ search degrading to keyword ranking rather than erroring when AI is off; AI labelling and safety notices verbatim; assistant approve-before-send; urgent-help banners (may move earlier, never later or smaller); PII-redaction warnings; request-review gating; private-note visibility; API contracts (additive only); strict CSP (no inline styles/scripts); the cache-versioning self-heal. Band reviews add: the case wizard's 7 steps and single `POST /api/cases` body shape survive the wizard-engine extraction (M2); nothing from a band assessment reaches a member before sign-off + approval; comparator anonymity by default; the reference ruleset label/checksum/verification status on every assessment screen and report footer; the print palette reset applying in dark mode; no scheme constant (factor, points, band boundary) in application code — reference data only.
 
 ## Out of scope (for now)
 
