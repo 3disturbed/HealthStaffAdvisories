@@ -105,10 +105,19 @@ async function renderToday() {
       }).join('');
       return `<h3>${label} <span class="tag" data-count="${cases.length}">${cases.length}</span></h3><div class="case-list stagger-list">${cards}</div>`;
     }).join('')}
-    <p class="small right"><a href="#/queue">Browse the full queue →</a></p>`;
+    <p class="small right"><a href="#/queue">Browse the full queue →</a></p>
+    <p class="small right" id="je-today-link" hidden><a href="#/banding">Band reviews <span id="je-today-count"></span> →</a></p>`;
   enterView(view);
   view.querySelectorAll('.stagger-list').forEach((l) => stagger(l, '.case-card'));
   view.querySelectorAll('[data-count]').forEach((elc) => countUp(elc, elc.dataset.count));
+  // Band review queue teaser — resilient: hidden unless the call succeeds.
+  api('/je/queue?view=needs_review').then((je) => {
+    const wrap = document.getElementById('je-today-link');
+    if (!wrap) return;
+    const n = je.counts?.needs_review || 0;
+    document.getElementById('je-today-count').textContent = n ? `(${n} needing review)` : '';
+    wrap.hidden = false;
+  }).catch(() => {});
 }
 
 // ── Queue (browse) ───────────────────────────────────────────────────────

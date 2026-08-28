@@ -96,6 +96,11 @@ async function renderHome() {
       ${open.length ? `<button class="btn secondary" type="button" id="quick-evidence">Add evidence</button>` : '<a class="btn secondary" href="#/cases">My cases</a>'}
     </div>
     <p class="small right mt0"><a href="#/faq">Common questions &rarr;</a></p>
+    <a class="case-card" href="#/banding" id="banding-entry">
+      <h3>Banding &amp; fair pay</h3>
+      <p class="small muted mt0">Think your job has outgrown its band? Build a full band review step by step — every part reviewed personally by Kelly.</p>
+      <p class="mt0"><span class="btn small secondary">Explore band reviews</span></p>
+    </a>
     ${installPanel({ variant: 'card' })}
     ${cases.length === 0 ? emptyState({
       icon: 'folderPlus',
@@ -165,9 +170,14 @@ const WIZ_STEPS = [
     title: 'What kind of issue is this?',
     hint: 'Best guess is fine — Kelly checks this.',
     body: () => `<div class="option-grid">${Object.entries(CASE_TYPE_OPTIONS).map(([v, l]) =>
-      `<button type="button" class="option-card ${wiz.caseType === v ? 'on' : ''}" data-type="${v}">${l}</button>`).join('')}</div>`,
-    wire: (next) => document.querySelectorAll('[data-type]').forEach((b) =>
-      b.addEventListener('click', () => { wiz.caseType = b.dataset.type; saveWiz(); next(); })),
+      `<button type="button" class="option-card ${wiz.caseType === v ? 'on' : ''}" data-type="${v}">${l}</button>`).join('')}
+      <button type="button" class="option-card" data-banding-opt>Band review / job evaluation<br><span class="small muted">A dedicated step-by-step process</span></button></div>`,
+    wire: (next) => {
+      document.querySelectorAll('[data-type]').forEach((b) =>
+        b.addEventListener('click', () => { wiz.caseType = b.dataset.type; saveWiz(); next(); }));
+      // Banding has its own guided process — hand off, keeping this draft.
+      document.querySelector('[data-banding-opt]')?.addEventListener('click', () => { saveWiz(); window.location.hash = '#/banding'; });
+    },
     collect: () => true,
     hideContinue: true,
   },

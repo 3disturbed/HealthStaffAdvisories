@@ -46,7 +46,8 @@ jeRouter.get('/status', requirePermission('je.own'), (req, res) => {
   });
 });
 
-jeRouter.get('/offer', requirePermission('je.own'), (req, res) => {
+// Public: the offer is marketing data, shown on the landing page signed-out.
+jeRouter.get('/offer', (req, res) => {
   res.json({ ok: true, offer: jeRef.getOffer() });
 });
 

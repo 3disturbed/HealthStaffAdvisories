@@ -246,6 +246,7 @@ export async function renderNav(activeId) {
     links.push(['login', '/login.html', 'Sign in'], ['register', '/register.html', 'Create account']);
   } else {
     if (can(user, 'cases.own')) links.push(['portal', '/portal.html', 'My cases']);
+    if (can(user, 'je.own')) links.push(['banding', '/portal.html#/banding', 'Band review']);
     if (can(user, 'cases.review')) links.push(['advisor', '/advisor.html', 'Advisor']);
     if (['users.manage', 'system.admin', 'audit.view', 'knowledge.manage', 'cases.review'].some((p) => can(user, p))) {
       links.push(['admin', '/admin.html', 'Admin']);

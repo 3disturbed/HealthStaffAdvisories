@@ -49,6 +49,24 @@ if (tierGrid) {
   } catch { /* fallback paragraph stays */ }
 }
 
+// Band review offer (admin repricing shows here instantly; static copy is
+// the no-JS/error fallback).
+const bandingCard = document.getElementById('banding-offer');
+if (bandingCard) {
+  try {
+    const clean = (v) => String(v ?? '').replace(/[<>&]/g, '');
+    const { offer } = await (await fetch('/api/je/offer')).json();
+    if (offer?.enabled) {
+      bandingCard.innerHTML = `
+        <h3 class="mt0">${clean(offer.headline)}</h3>
+        <p class="stat-num">£${clean(offer.priceGbp)}${offer.vatApplies ? ' <span class="small muted">+ VAT</span>' : ''}<span class="small muted"> ${clean(offer.unit)}</span></p>
+        <ul class="small">${(offer.inclusions || []).map((i) => `<li>${clean(i)}</li>`).join('')}</ul>
+        <p class="muted small">${clean(offer.note)} Indicative and evidence-based: only your employer's job evaluation panel can decide a band.</p>
+        <p><a class="btn" href="/register.html">Create a free account to start</a></p>`;
+    }
+  } catch { /* fallback copy stays */ }
+}
+
 // Trust-signals band above the footer (injected, so observed afterwards).
 const trustBand = document.getElementById('trust-band');
 if (trustBand) {
