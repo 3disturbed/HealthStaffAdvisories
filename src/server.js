@@ -4,7 +4,6 @@ import { config } from './config.js';
 import { BUILD_VERSION } from './version.js';
 import { seedAdmin } from './db/connection.js';
 import { seedJeRuleset } from './je/reference.js';
-import { seedFaq } from './faq/seed.js';
 import { attachUser, csrfGuard } from './auth/middleware.js';
 import { authRouter } from './api/auth.js';
 import { casesRouter } from './api/cases.js';
@@ -20,7 +19,6 @@ import { membershipRouter } from './api/membership.js';
 import { stripeWebhookHandler } from './api/stripeWebhook.js';
 import { seedMembershipTiers } from './db/connection.js';
 import { processAiQueue } from './services/aiQueue.js';
-import { faqRouter } from './api/faq.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -69,7 +67,6 @@ app.use('/api/advisor', advisorRouter);
 app.use('/api/admin/assistant', assistantRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/knowledge', knowledgeRouter);
-app.use('/api/faq', faqRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/je', jeRouter);
@@ -112,7 +109,6 @@ app.use((err, req, res, next) => {
 
 const seeded = seedAdmin();
 seedJeRuleset();
-seedFaq();
 seedMembershipTiers();
 
 // AI allowance queue worker: drains queued jobs when allowance frees.
