@@ -1,17 +1,12 @@
-import OpenAI from 'openai';
-import { db, getSetting } from '../db/connection.js';
+import { db } from '../db/connection.js';
 import { retrieveChunks } from './retrieve.js';
 import { INTAKE_SYSTEM_PROMPT, INTAKE_PROMPT_VERSION } from './prompts.js';
 import { audit } from '../audit/log.js';
-import { config } from '../config.js';
+import { aiConfigured, aiEnabled, completeJson, currentModel } from './provider.js';
 
-export function aiConfigured() {
-  return !!getSetting('openai_api_key');
-}
-
-export function aiEnabled() {
-  return getSetting('ai_disabled', '0') !== '1' && aiConfigured();
-}
+// Re-exported so existing importers (cases, advisor, admin, assistant APIs)
+// keep working; the implementations live in the shared provider adapter.
+export { aiConfigured, aiEnabled };
 
 const VALID_URGENCY = ['critical', 'high', 'normal', 'self_service'];
 const VALID_TYPES = ['disciplinary', 'grievance', 'sickness', 'pay', 'flexible', 'speaking_up', 'contract', 'dismissal', 'other'];
@@ -86,21 +81,16 @@ export async function runIntake(caseId, task = 'intake') {
 
   const userContent = `MEMBER'S ACCOUNT (untrusted data):\n${c.what_happened}\n\nSTRUCTURED FIELDS:\nEmployer: ${c.employer || 'not given'}\nRole/staff group: ${c.staff_group || 'not given'}\nFormal steps so far: ${c.formal_stage || 'none stated'}\nMeeting/hearing/deadline: ${c.meeting_or_deadline || 'none stated'}\nDesired outcome: ${c.desired_outcome || 'not given'}\nMember-selected case type: ${c.case_type}\n\nKNOWLEDGE EXTRACTS (numbered, approved sources):\n${extracts}\n\nUPLOADED DOCUMENTS:\n${docText || '(none)'}`;
 
-  const model = getSetting('ai_model', config.defaultAiModel);
-  const client = new OpenAI({ apiKey: getSetting('openai_api_key') });
+  let model = currentModel();
 
   let stored;
   try {
-    const completion = await client.chat.completions.create({
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: INTAKE_SYSTEM_PROMPT },
-        { role: 'user', content: userContent },
-      ],
-    });
-    const raw = JSON.parse(completion.choices[0].message.content);
-    const validated = validateIntake(raw, chunkIds);
+    const result = await completeJson([
+      { role: 'system', content: INTAKE_SYSTEM_PROMPT },
+      { role: 'user', content: userContent },
+    ]);
+    model = result.model;
+    const validated = validateIntake(result.raw, chunkIds);
 
     const info = db
       .prepare(

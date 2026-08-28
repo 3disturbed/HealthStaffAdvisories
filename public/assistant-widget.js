@@ -1,4 +1,4 @@
-import { api, esc, fmtDate } from '/common.js';
+import { api, esc, escAttr, fmtDate } from '/common.js';
 
 // Shared tabbed assistant chat. Used by the floating widget (every page)
 // and embedded in the Admin → Assistant tab. Each tab is an independent
@@ -31,7 +31,7 @@ export function createChatUI(container) {
   function renderTabs() {
     tabsEl.innerHTML = `
       ${root.threads.map((t) => `
-        <button type="button" class="assistant-tab ${t.id === activeId ? 'active' : ''}" data-thread="${t.id}" title="${esc(t.title)} (double-click to rename)">
+        <button type="button" class="assistant-tab ${t.id === activeId ? 'active' : ''}" data-thread="${t.id}" title="${escAttr(t.title)} (double-click to rename)">
           ${esc(t.title.length > 18 ? `${t.title.slice(0, 17)}…` : t.title)}
           <span class="assistant-tab-x" data-close="${t.id}" title="Close conversation">✕</span>
         </button>`).join('')}

@@ -22,6 +22,9 @@ export const ICONS = {
   folderPlus: svg('<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8L10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/><path d="M12 10v6M9 13h6"/>', '0 0 24 24'),
   inboxCheck: svg('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 5h14l3 7v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7z"/><path d="m9 8 2 2 4-4"/>', '0 0 24 24'),
   file: svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>'),
+  scales: svg('<path d="M12 3v18M8 21h8"/><path d="M5 7h14"/><path d="M5 7 2.5 13a3.5 3.5 0 0 0 5 0L5 7zM19 7l-2.5 6a3.5 3.5 0 0 0 5 0L19 7z"/>'),
+  clipboardCheck: svg('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4a2 2 0 0 1 6 0"/><path d="m9 13 2 2 4-4"/>'),
+  quote: svg('<path d="M7 7h4v5H8a3 3 0 0 0 3 3v2a5 5 0 0 1-5-5V9a2 2 0 0 1 1-2z"/><path d="M14 7h4v5h-3a3 3 0 0 0 3 3v2a5 5 0 0 1-5-5V9a2 2 0 0 1 1-2z"/>'),
 };
 
 // ── motion helpers ───────────────────────────────────────────────────────
@@ -184,4 +187,58 @@ export function dueChip(dateStr) {
   if (days === 1) return '<span class="due-chip soon">Tomorrow</span>';
   if (days <= 7) return `<span class="due-chip soon">${days} days</span>`;
   return `<span class="due-chip">${days} days</span>`;
+}
+
+// ── shared polite live region ────────────────────────────────────────────
+let liveRegion = null;
+export function announce(text) {
+  if (!liveRegion) {
+    liveRegion = document.createElement('div');
+    liveRegion.id = 'live-region';
+    liveRegion.className = 'sr-only';
+    liveRegion.setAttribute('aria-live', 'polite');
+    document.body.appendChild(liveRegion);
+  }
+  liveRegion.textContent = '';
+  requestAnimationFrame(() => { liveRegion.textContent = text; });
+}
+
+// ── confirm sheet (approve-before-send flows) ────────────────────────────
+// Shows exactly what will happen; resolves true on confirm, false otherwise.
+export function confirmSheet({ title, bodyHtml, confirmLabel = 'Confirm', danger = false }) {
+  return new Promise((resolve) => {
+    const body = openSheet(title, `${bodyHtml}
+      <p class="sheet-actions">
+        <button class="btn ${danger ? 'danger' : ''}" type="button" data-confirm>${confirmLabel}</button>
+        <button class="btn quiet" type="button" data-cancel>Cancel</button>
+      </p>`);
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; closeSheet(); resolve(v); } };
+    body.querySelector('[data-confirm]').addEventListener('click', () => finish(true));
+    body.querySelector('[data-cancel]').addEventListener('click', () => finish(false));
+    document.getElementById('sheet-overlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'sheet-overlay') finish(false);
+    });
+  });
+}
+
+// ── printing ─────────────────────────────────────────────────────────────
+// Browsers use document.title as the default "Save as PDF" filename —
+// which matters for a document Kelly emails to HR.
+export function printDoc(title) {
+  const previous = document.title;
+  if (title) document.title = title;
+  window.print();
+  setTimeout(() => { document.title = previous; }, 500);
+}
+
+// ── JE skeletons ─────────────────────────────────────────────────────────
+export function skelFactors(n = 6) {
+  return `<div class="factor-list">${Array.from({ length: n }, () =>
+    `<div class="factor-row skel-card">${skelLine('55')}${skelLine('30')}</div>`
+  ).join('')}</div>`;
+}
+
+export function skelReport() {
+  return `<div class="card skel-card">${skelLine('45')}${skelLine('90')}${skelLine('85')}${skelLine('70')}${skelLine('88')}</div>`;
 }

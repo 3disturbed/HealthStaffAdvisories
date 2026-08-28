@@ -1,4 +1,5 @@
-import { api, esc, fmtDate, fmtDay, requireUser } from '/common.js';
+import { api, esc, escAttr, safeUrl, fmtDate, fmtDay, requireUser } from '/common.js';
+import { createWizard } from '/wizard.js';
 import { installPanel, wireInstallPanel } from '/install-ui.js';
 import { enterView, stagger, setBusy, toast, openSheet, closeSheet, dueChip, emptyState, skelCases, skelCaseDetail } from '/ui.js';
 
@@ -84,7 +85,7 @@ async function renderHome() {
         ${journeyStepper(primary.status, true)}
         <p class="small">${esc(NEXT_STEP_TEXT[primary.status] || primary.statusLabel)}</p>
         <p class="mt0">
-          <span class="tag ${esc(primary.urgency)}">${esc(primary.urgency.replace('_', ' '))}</span>
+          <span class="tag ${escAttr(primary.urgency)}">${esc(primary.urgency.replace('_', ' '))}</span>
           <span class="tag status">${esc(primary.statusLabel)}</span>
           ${primary.next_important_at ? dueChip(primary.next_important_at) : ''}
         </p>
@@ -121,7 +122,7 @@ async function renderCaseList() {
       ${cases.map((c) => `
         <a class="case-card" href="#/case/${c.id}">
           <h3>${esc(c.title)}</h3>
-          <span class="tag ${esc(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
+          <span class="tag ${escAttr(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
           <span class="tag status">${esc(c.statusLabel)}</span>
           <span class="tag">${esc(c.typeLabel)}</span>
           ${c.next_important_at ? dueChip(c.next_important_at) : ''}
@@ -174,9 +175,9 @@ const WIZ_STEPS = [
     hint: 'Employer and your role — this helps us find the right policies.',
     body: () => `
       <label for="wiz-employer">Employer / NHS organisation</label>
-      <input id="wiz-employer" type="text" value="${esc(wiz.employer)}">
+      <input id="wiz-employer" type="text" value="${escAttr(wiz.employer)}">
       <label for="wiz-staff">Your role / staff group</label>
-      <input id="wiz-staff" type="text" placeholder="e.g. Band 5 nurse, HCA, AHP" value="${esc(wiz.staffGroup)}">`,
+      <input id="wiz-staff" type="text" placeholder="e.g. Band 5 nurse, HCA, AHP" value="${escAttr(wiz.staffGroup)}">`,
     collect: () => {
       wiz.employer = document.getElementById('wiz-employer').value;
       wiz.staffGroup = document.getElementById('wiz-staff').value;
@@ -187,21 +188,21 @@ const WIZ_STEPS = [
   {
     title: 'Has anything already happened formally?',
     hint: 'e.g. an investigation opened, a letter received, a warning given — or “nothing formal yet”.',
-    body: () => `<input id="wiz-input" type="text" value="${esc(wiz.formalStage)}">`,
+    body: () => `<input id="wiz-input" type="text" value="${escAttr(wiz.formalStage)}">`,
     collect: () => { wiz.formalStage = document.getElementById('wiz-input').value; return true; },
     skippable: true,
   },
   {
     title: 'Is there a meeting, hearing or deadline?',
     hint: 'If yes, tell us the date — this matters for urgency.',
-    body: () => `<input id="wiz-input" type="text" value="${esc(wiz.meetingOrDeadline)}">`,
+    body: () => `<input id="wiz-input" type="text" value="${escAttr(wiz.meetingOrDeadline)}">`,
     collect: () => { wiz.meetingOrDeadline = document.getElementById('wiz-input').value; return true; },
     skippable: true,
   },
   {
     title: 'What would you like to happen?',
     hint: 'Your ideal outcome — it guides Kelly’s advice.',
-    body: () => `<input id="wiz-input" type="text" value="${esc(wiz.desiredOutcome)}">`,
+    body: () => `<input id="wiz-input" type="text" value="${escAttr(wiz.desiredOutcome)}">`,
     collect: () => { wiz.desiredOutcome = document.getElementById('wiz-input').value; return true; },
     skippable: true,
   },
@@ -230,51 +231,16 @@ const WIZ_STEPS = [
 ];
 
 function renderWizard() {
-  const total = WIZ_STEPS.length;
-  const step = Math.min(Math.max(wiz.step, 1), total);
-  const def = WIZ_STEPS[step - 1];
-
-  view.innerHTML = `
-    <h1>Start a case</h1>
-    <p class="muted small">Step ${step} of ${total}</p>
-    <div class="wiz-progress"><div class="wiz-progress-fill" id="wiz-fill"></div></div>
-    <div class="card" id="wiz-card">
-      <h3 class="mt0">${def.title}</h3>
-      ${def.hint ? `<p class="hint">${def.hint}</p>` : ''}
-      <div id="msg"></div>
-      <form id="wiz-form">${def.body()}
-        <p>
-          ${step > 1 ? '<button class="btn quiet" type="button" id="wiz-back">Back</button>' : '<a class="btn quiet" href="#/">Cancel</a>'}
-          ${def.hideContinue ? '' : def.review
-            ? '<button class="btn" type="submit" id="wiz-submit">Create case</button>'
-            : `<button class="btn" type="submit">Continue</button>${def.skippable ? '<button class="btn quiet" type="button" id="wiz-skip">Skip for now</button>' : ''}`}
-        </p>
-      </form>
-    </div>`;
-  requestAnimationFrame(() => {
-    const fill = document.getElementById('wiz-fill');
-    if (fill) fill.style.transform = `scaleX(${step / total})`;
-  });
-  enterView(document.getElementById('wiz-card'));
-
-  const go = (n) => { wiz.step = n; saveWiz(); renderWizard(); };
-  document.getElementById('wiz-back')?.addEventListener('click', () => { def.collect?.(); saveWiz(); go(step - 1); });
-  document.getElementById('wiz-skip')?.addEventListener('click', () => go(step + 1));
-  def.wire?.(() => go(step + 1));
-  view.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => go(Number(b.dataset.goto))));
-
-  document.getElementById('wiz-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!def.collect()) {
-      document.getElementById('msg').innerHTML = `<div class="notice error">${esc(def.error || 'Please check this step.')}</div>`;
-      return;
-    }
-    saveWiz();
-    if (!def.review) return go(step + 1);
-
-    const btn = document.getElementById('wiz-submit');
-    setBusy(btn, true);
-    try {
+  const wizard = createWizard({
+    mount: view,
+    heading: 'Start a case',
+    steps: WIZ_STEPS,
+    getStep: () => wiz.step,
+    setStep: (n) => { wiz.step = n; },
+    onPersist: () => saveWiz(),
+    submitLabel: 'Create case',
+    cancelHref: '#/',
+    onSubmit: async () => {
       const data = await api('/cases', {
         method: 'POST',
         body: {
@@ -291,18 +257,24 @@ function renderWizard() {
       if (data.urgent) {
         view.innerHTML = `
           <div class="card anim-page-enter">
-            <h2 class="mt0">We’re treating this as a priority</h2>
-            <p>What you’ve described has been placed in Kelly’s urgent queue. If a deadline is very close, also see <a href="/emergency.html">urgent help</a> — do not rely on the portal alone.</p>
+            <h2 class="mt0">We\u2019re treating this as a priority</h2>
+            <p>What you\u2019ve described has been placed in Kelly\u2019s urgent queue. If a deadline is very close, also see <a href="/emergency.html">urgent help</a> \u2014 do not rely on the portal alone.</p>
             <p><a class="btn" href="#/case/${data.caseId}">Open my case</a></p>
+          </div>`;
+      } else if (data.jeInterest) {
+        view.innerHTML = `
+          <div class="card anim-page-enter">
+            <h2 class="mt0">Your case is in</h2>
+            <p>It sounds like this may be about the band your job is paid at. Alongside your case, there\u2019s a dedicated section that helps you build a full band review, step by step.</p>
+            <p><a class="btn" href="#/banding/new">Start a band review</a>
+               <a class="btn secondary" href="#/case/${data.caseId}">Open my case</a></p>
           </div>`;
       } else {
         window.location.hash = `#/case/${data.caseId}`;
       }
-    } catch (err) {
-      setBusy(btn, false);
-      document.getElementById('msg').innerHTML = `<div class="notice error">${esc(err.message)}</div>`;
-    }
+    },
   });
+  wizard.render();
 }
 
 // ── AI intake card (labels verbatim) ────────────────────────────────────
@@ -318,7 +290,7 @@ function intakeCard(intake) {
       ${intake.uncertainty ? `<p class="small"><strong>What is unclear:</strong> ${esc(intake.uncertainty)}</p>` : ''}
       ${intake.missingQuestions?.length ? `<h4>Questions that would help</h4><ul>${intake.missingQuestions.map((q) => `<li>${esc(q)}</li>`).join('')}</ul>` : ''}
       ${intake.importantDates?.length ? `<h4>Possible important dates</h4><ul>${intake.importantDates.map((d) => `<li>${d.date ? `<strong>${esc(fmtDay(d.date))}</strong> — ` : ''}${esc(d.event)} <span class="tag high">potential — verify</span></li>`).join('')}</ul>` : ''}
-      ${intake.sources?.length ? `<h4>Sources used</h4>${intake.sources.map((s) => `<div class="source-item"><span class="kind">${esc(s.sourceType.replace('_', ' '))}</span><br>${esc(s.title)} — ${esc(s.publisher)} (${esc(s.version)})${s.url ? ` · <a href="${esc(s.url)}" rel="noopener" target="_blank">source</a>` : ''}</div>`).join('')}` : '<p class="small muted">No knowledge sources matched this case yet.</p>'}
+      ${intake.sources?.length ? `<h4>Sources used</h4>${intake.sources.map((s) => `<div class="source-item"><span class="kind">${esc(s.sourceType.replace('_', ' '))}</span><br>${esc(s.title)} — ${esc(s.publisher)} (${esc(s.version)})${s.url ? (safeUrl(s.url) ? ` · <a href="${escAttr(s.url)}" rel="noopener" target="_blank">source</a>` : ` · ${esc(s.url)}`) : ''}</div>`).join('')}` : '<p class="small muted">No knowledge sources matched this case yet.</p>'}
     </details>`;
 }
 
@@ -392,7 +364,7 @@ async function renderCase(id, { silent = false } = {}) {
     ${journeyStepper(c.status, !!intake)}
     <p class="small"><strong>${esc(NEXT_STEP_TEXT[c.status] || c.statusLabel)}</strong></p>
     <p>
-      <span class="tag ${esc(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
+      <span class="tag ${escAttr(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
       <span class="tag status">${esc(c.statusLabel)}</span>
       <span class="tag">${esc(c.typeLabel)}</span>
     </p>
@@ -491,7 +463,12 @@ async function route() {
     const caseMatch = hash.match(/^#\/case\/(\d+)(\/evidence)?$/);
     if (hash === '#/new') renderWizard();
     else if (hash === '#/cases') await renderCaseList();
-    else if (caseMatch) {
+    else if (hash.startsWith('#/banding')) {
+      // The band review section: heavy view code loads on demand.
+      view.innerHTML = '<p class="muted">Loading\u2026</p>';
+      const m = await import('/banding-member.js');
+      await m.route(view, user, hash);
+    } else if (caseMatch) {
       await renderCase(Number(caseMatch[1]));
       if (caseMatch[2]) openEvidenceSheet(Number(caseMatch[1]));
     } else await renderHome();

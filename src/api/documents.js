@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import multer from 'multer';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { db } from '../db/connection.js';
@@ -8,8 +7,7 @@ import { requirePermission, requireAuth } from '../auth/middleware.js';
 import { userHas } from '../rbac/permissions.js';
 import { audit } from '../audit/log.js';
 import { config } from '../config.js';
-import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import { DOCUMENT_TYPES, classifyUpload, storeUpload, extractText } from '../services/documentIntake.js';
 
 export const documentsRouter = Router();
 
@@ -18,45 +16,20 @@ const upload = multer({
   limits: { fileSize: config.maxUploadBytes, files: 1 },
 });
 
-// Validate the real file type by magic bytes, not just the extension (SDD §8).
-const TYPES = {
-  pdf: { mime: 'application/pdf', magic: (b) => b.slice(0, 5).toString() === '%PDF-' },
-  docx: {
-    mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    magic: (b) => b[0] === 0x50 && b[1] === 0x4b, // ZIP container
-  },
-  txt: { mime: 'text/plain', magic: () => true },
-};
-
-async function extractText(kind, buffer) {
-  if (kind === 'txt') return buffer.toString('utf8').slice(0, 200000);
-  if (kind === 'pdf') return (await pdfParse(buffer)).text.slice(0, 200000);
-  if (kind === 'docx') return (await mammoth.extractRawText({ buffer })).value.slice(0, 200000);
-  return '';
-}
-
 documentsRouter.post('/cases/:id/documents', requirePermission('cases.own'), upload.single('file'), async (req, res) => {
   const c = db.prepare('SELECT * FROM cases WHERE id = ?').get(Number(req.params.id));
   if (!c || c.member_id !== req.user.id) return res.status(404).json({ error: 'Case not found.' });
-  if (!req.file) return res.status(400).json({ error: 'No file received.' });
+  const classified = classifyUpload(req.file);
+  if (classified.error) return res.status(400).json({ error: classified.error });
+  const { kind } = classified;
 
-  const ext = path.extname(req.file.originalname).toLowerCase().replace('.', '');
-  const kind = TYPES[ext] ? ext : null;
-  if (!kind || !TYPES[kind].magic(req.file.buffer)) {
-    return res.status(400).json({ error: 'Only PDF, DOCX and TXT files are supported at the moment.' });
-  }
-
-  const sha256 = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
-  const storageKey = `${sha256}.${kind}`;
-  fs.writeFileSync(path.join(config.uploadDir, storageKey), req.file.buffer);
-
-  const safeName = path.basename(req.file.originalname).slice(0, 200);
+  const { storageKey, sha256, safeName } = storeUpload(req.file, kind);
   const info = db
     .prepare(
       `INSERT INTO documents (owner_user_id, case_id, storage_key, original_filename, media_type, size_bytes, sha256)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(req.user.id, c.id, storageKey, safeName, TYPES[kind].mime, req.file.size, sha256);
+    .run(req.user.id, c.id, storageKey, safeName, DOCUMENT_TYPES[kind].mime, req.file.size, sha256);
   const docId = info.lastInsertRowid;
   audit(req.user.id, 'document.uploaded', 'document', docId, { caseId: c.id, bytes: req.file.size });
 

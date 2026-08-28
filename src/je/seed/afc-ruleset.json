@@ -1,0 +1,280 @@
+{
+  "scheme": "afc",
+  "label": "NHS Job Evaluation Scheme (seeded)",
+  "effectiveFrom": "2024-02-01",
+  "sourceNote": "Factor names, points per level and band ranges transcribed from the NHS Job Evaluation Handbook (NHS Staff Council / NHS Employers, Feb 2024 edition). Level descriptors are SHORT PARAPHRASES for working reference only — the published handbook wording is authoritative and should be loaded into the knowledge base for citation. National profiles are not seeded: import them from the published NHS profile library. Verify this whole ruleset against the current handbook before relying on it.",
+  "matchRules": {
+    "boundaryMarginPoints": 12,
+    "shortlistLimit": 8,
+    "matchToleranceFactors": 2
+  },
+  "limitationRules": [
+    {
+      "code": "je_appeal_window",
+      "label": "Local job evaluation review / appeal window",
+      "baseEvent": "outcome_issued",
+      "unit": "days",
+      "amount": null,
+      "warnDays": 14,
+      "note": "Appeal and review windows for job evaluation outcomes are set by the employer's local procedure and are often short. Check the employer's JE procedure as soon as an outcome is issued."
+    },
+    {
+      "code": "equal_pay_limit",
+      "label": "Equal pay claim time limit",
+      "baseEvent": "employment_end",
+      "unit": "months",
+      "amount": 6,
+      "minusOneDay": true,
+      "warnDays": 60,
+      "note": "An equal pay claim in an employment tribunal must usually be brought within six months less one day of the end of the employment the claim relates to. Civil court routes and Acas early conciliation affect timing. Specialist advice is essential."
+    },
+    {
+      "code": "wages_deduction_limit",
+      "label": "Unlawful deduction from wages time limit",
+      "baseEvent": "last_underpayment",
+      "unit": "months",
+      "amount": 3,
+      "minusOneDay": true,
+      "warnDays": 30,
+      "note": "A tribunal claim for unlawful deduction from wages must usually be brought within three months less one day of the last deduction, and arrears in England and Wales are generally capped at two years before the claim. Acas early conciliation pauses the clock. Verify before relying on any date."
+    }
+  ],
+  "bands": [
+    { "label": "1", "min": 0, "max": 160 },
+    { "label": "2", "min": 161, "max": 215 },
+    { "label": "3", "min": 216, "max": 270 },
+    { "label": "4", "min": 271, "max": 325 },
+    { "label": "5", "min": 326, "max": 395 },
+    { "label": "6", "min": 396, "max": 465 },
+    { "label": "7", "min": 466, "max": 539 },
+    { "label": "8a", "min": 540, "max": 584 },
+    { "label": "8b", "min": 585, "max": 629 },
+    { "label": "8c", "min": 630, "max": 674 },
+    { "label": "8d", "min": 675, "max": 720 },
+    { "label": "9", "min": 721, "max": 765 }
+  ],
+  "factors": [
+    {
+      "code": "communication",
+      "seq": 1,
+      "name": "Communication and relationship skills",
+      "description": "The skills needed to communicate, build relationships and gain cooperation: motivating, negotiating, persuading, presenting, training, empathising, breaking difficult news, counselling and reassurance, and the difficulties involved.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Provides and receives routine information orally, mainly with work colleagues, to carry out own job." },
+        { "label": "2", "points": 12, "descriptor": "Provides and receives routine information — spoken, written or electronic — to colleagues, patients, carers, the public or external contacts." },
+        { "label": "3", "points": 21, "descriptor": "Routine information needing tact or persuasion or where there are barriers to understanding; or complex/sensitive information; or straightforward advice, instruction or training to groups." },
+        { "label": "4", "points": 32, "descriptor": "Complex, sensitive or contentious information where persuasive, motivational, negotiating, training, empathic or reassurance skills are needed; or highly complex information." },
+        { "label": "5", "points": 45, "descriptor": "Highly complex, highly sensitive or highly contentious information needing developed interpersonal skills; presenting complex material to large groups; or overcoming significant barriers to acceptance in hostile or highly emotive settings." },
+        { "label": "6", "points": 60, "descriptor": "Highly complex, highly sensitive or highly contentious information with significant barriers to acceptance, requiring the highest level of interpersonal and communication skills." }
+      ]
+    },
+    {
+      "code": "knowledge",
+      "seq": 2,
+      "name": "Knowledge, training and experience",
+      "description": "All forms of knowledge, training and experience required to do the job satisfactorily — theoretical, practical, professional/technical, and knowledge of relevant policies, practices and procedures, however acquired.",
+      "levels": [
+        { "label": "1", "points": 16, "descriptor": "A small number of routine work procedures, learnable through a short induction or on-the-job instruction." },
+        { "label": "2", "points": 36, "descriptor": "A range of routine work procedures, possibly beyond the immediate work area, needing job training plus a period of induction." },
+        { "label": "3", "points": 60, "descriptor": "A range of work procedures, some non-routine, needing a base level of theoretical knowledge from formal training or equivalent experience." },
+        { "label": "4", "points": 88, "descriptor": "A range of work procedures and practices, the majority non-routine, needing intermediate-level theoretical knowledge from formal training or equivalent experience." },
+        { "label": "5", "points": 120, "descriptor": "Expertise within a specialism or discipline underpinned by theoretical knowledge or relevant practical experience — broadly degree level or an equivalent level of knowledge." },
+        { "label": "6", "points": 156, "descriptor": "Specialist knowledge across the range of work procedures and practices, underpinned by theory or experience — broadly post-registration/graduate-diploma level or equivalent." },
+        { "label": "7", "points": 196, "descriptor": "Highly developed specialist knowledge underpinned by theory and experience — broadly master's level or an equivalent depth acquired through study, research or in-depth experience." },
+        { "label": "8", "points": 240, "descriptor": "Advanced theoretical and practical knowledge (broadly doctorate-plus), or specialist knowledge across more than one discipline or function acquired over a significant period." }
+      ]
+    },
+    {
+      "code": "analytical",
+      "seq": 3,
+      "name": "Analytical and judgemental skills",
+      "description": "The analytical skills needed to diagnose problems and understand complex situations or information, and the judgemental skills needed to formulate solutions and recommend or decide the best course of action.",
+      "levels": [
+        { "label": "1", "points": 6, "descriptor": "Judgements involving straightforward job-related facts or situations." },
+        { "label": "2", "points": 15, "descriptor": "Judgements involving facts or situations, some of which require analysis." },
+        { "label": "3", "points": 27, "descriptor": "Judgements involving a range of facts or situations requiring analysis or comparison of a range of options." },
+        { "label": "4", "points": 42, "descriptor": "Judgements involving complex facts or situations requiring analysis, interpretation and comparison of a range of options." },
+        { "label": "5", "points": 60, "descriptor": "Judgements involving highly complex facts or situations requiring analysis, interpretation and comparison of a range of options." }
+      ]
+    },
+    {
+      "code": "planning",
+      "seq": 4,
+      "name": "Planning and organisational skills",
+      "description": "The skills needed for planning and organising clinical and non-clinical services, departments, rotas, meetings and programmes, up to strategic planning, taking account of complexity and uncertainty.",
+      "levels": [
+        { "label": "1", "points": 6, "descriptor": "Organises own day-to-day work tasks or activities." },
+        { "label": "2", "points": 15, "descriptor": "Plans and organises straightforward tasks, activities or programmes, some of which may be ongoing." },
+        { "label": "3", "points": 27, "descriptor": "Plans and organises a number of complex activities or programmes, requiring the formulation and adjustment of plans." },
+        { "label": "4", "points": 42, "descriptor": "Plans and organises a broad range of complex activities or programmes, some ongoing, requiring formulation and adjustment of plans or strategies." },
+        { "label": "5", "points": 60, "descriptor": "Formulates long-term strategic plans involving uncertainty, which may impact across the whole organisation." }
+      ]
+    },
+    {
+      "code": "physical_skills",
+      "seq": 5,
+      "name": "Physical skills",
+      "description": "Physical skills required for the job: hand-eye co-ordination, sensory skills, dexterity, manipulation, speed and accuracy requirements, keyboard and driving skills.",
+      "levels": [
+        { "label": "1", "points": 6, "descriptor": "Minimal demand for work-related physical skills." },
+        { "label": "2", "points": 15, "descriptor": "Physical skills normally obtained through practice or practical training — e.g. standard driving or keyboard skills, use of some tools and equipment." },
+        { "label": "3", "points": 27, "descriptor": "Developed physical skills where speed or accuracy is specifically required (e.g. advanced driving or keyboard use, manipulation with narrow margins for error); or highly developed skills where accuracy matters without a speed requirement (e.g. fine tools or materials)." },
+        { "label": "4", "points": 42, "descriptor": "Highly developed physical skills with high accuracy demands — e.g. surgical interventions, intubation, suturing, manual therapy treatments, endoscopies." },
+        { "label": "5", "points": 60, "descriptor": "The highest level of physical skill, where a high degree of precision or speed and the highest hand, eye and sensory co-ordination are essential — e.g. keyhole or laser surgery." }
+      ]
+    },
+    {
+      "code": "patient_care",
+      "seq": 6,
+      "name": "Responsibilities for patient/client care",
+      "description": "Responsibility for patient/client care, treatment and therapy: the nature of the responsibility, the jobholder's level of involvement, how far it is shared, and responsibility for care records.",
+      "levels": [
+        { "label": "1", "points": 4, "descriptor": "Assists patients/clients/relatives during incidental contacts." },
+        { "label": "2", "points": 9, "descriptor": "Provides general non-clinical advice, information, guidance or ancillary services directly to patients, clients, relatives or carers." },
+        { "label": "3", "points": 15, "descriptor": "Provides personal care, basic clinical technical services, or basic clinical advice." },
+        { "label": "4", "points": 22, "descriptor": "Implements clinical care or care packages, provides clinical technical services, or advises on the care of individuals or groups of patients/clients." },
+        { "label": "5", "points": 30, "descriptor": "Develops programmes of care or care packages, provides specialist clinical technical services, or gives specialised advice on patient/client care." },
+        { "label": "6", "points": 39, "descriptor": "Develops specialised care programmes, provides highly specialist clinical technical services or highly specialised advice, or is accountable for direct delivery of a service within a sub-division of a clinical or social care service." },
+        { "label": "7", "points": 49, "descriptor": "Accountable for the direct delivery of a clinical, clinical technical or social care service." },
+        { "label": "8", "points": 60, "descriptor": "Corporate responsibility for the provision of a clinical, clinical technical or social care service." }
+      ]
+    },
+    {
+      "code": "policy_service",
+      "seq": 7,
+      "name": "Responsibilities for policy and service development",
+      "description": "Responsibility for developing and implementing policy and/or services: the level of contribution to decision-making, the reach of the policies or services (function, department, organisation or wider), and how far responsibility is shared.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Follows policies set by others in own role; may be asked to comment on policies, procedures or possible developments." },
+        { "label": "2", "points": 12, "descriptor": "Implements policies for own work area and proposes changes to its working practices or procedures." },
+        { "label": "3", "points": 21, "descriptor": "Implements policies and proposes policy or service changes that have an impact beyond own area of activity." },
+        { "label": "4", "points": 32, "descriptor": "Responsible for policy implementation and for discrete policy or service development for a service or more than one area of activity." },
+        { "label": "5", "points": 45, "descriptor": "Responsible for a range of policy implementation and policy or service development for a directorate or equivalent." },
+        { "label": "6", "points": 60, "descriptor": "Corporate responsibility for major policy implementation and policy or service development affecting the whole organisation or beyond." }
+      ]
+    },
+    {
+      "code": "finance_physical",
+      "seq": 8,
+      "name": "Responsibilities for financial and physical resources",
+      "description": "Responsibility for money (cash, budgets, revenues, payments) and physical assets (equipment, vehicles, premises, stock, personal possessions): its nature, frequency, value and how far it is shared.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Observes a personal duty of care in relation to equipment and resources used in the course of work." },
+        { "label": "2", "points": 12, "descriptor": "Regularly handles cash, cheques or valuables; safe use of equipment beyond personal use; stock control or security; authorised signatory for small payments; or safe use of expensive or highly complex equipment." },
+        { "label": "3", "points": 21, "descriptor": "Authorised signatory for payments; purchases some assets or supplies; monitors or contributes to budgets; holds a delegated budget; or installs, repairs and maintains physical assets." },
+        { "label": "4", "points": 32, "descriptor": "Budget holder or budget-setter for a department or service, or responsible for procurement or maintenance of all its physical assets or supplies." },
+        { "label": "5", "points": 45, "descriptor": "Responsible for the budget, budget setting or physical assets of several services." },
+        { "label": "6", "points": 60, "descriptor": "Corporate responsibility for the financial resources and physical assets of the organisation." }
+      ]
+    },
+    {
+      "code": "hr",
+      "seq": 9,
+      "name": "Responsibilities for human resources",
+      "description": "Responsibility for management, supervision, co-ordination, teaching, training and development of employees and students: work allocation and checking, clinical supervision, training delivery, appraisal, recruitment and HR functions. The nature of the responsibility matters more than headcount.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Demonstrates own duties to, or advises, new or less experienced employees in own work area." },
+        { "label": "2", "points": 12, "descriptor": "Day-to-day supervision or co-ordination of staff within a section; regular professional/clinical supervision of a small number of staff or students; regular practical training or basic workplace assessment; or regular basic HR advice." },
+        { "label": "3", "points": 21, "descriptor": "Day-to-day management of a group of staff; allocation, placement and supervision of qualified staff or students; teaching or delivery of core or specialist training on a range of subjects; or delivery of core HR advice on a range of subjects." },
+        { "label": "4", "points": 32, "descriptor": "Line manager for a single function or department; teaching or devising training and development programmes as a major job responsibility; or delivering a comprehensive range of HR services." },
+        { "label": "5", "points": 45, "descriptor": "Line manager for several departments; manages a teaching or training function across the organisation; or manages a significant part of the HR function." },
+        { "label": "6", "points": 60, "descriptor": "Corporate responsibility for the organisation's human resources or HR function." }
+      ]
+    },
+    {
+      "code": "information",
+      "seq": 10,
+      "name": "Responsibilities for information resources",
+      "description": "Specific responsibility for information resources and systems (paper or computerised): security, processing and generating information, and creating, updating and maintaining databases or systems. All NHS information is assumed confidential.",
+      "levels": [
+        { "label": "1", "points": 4, "descriptor": "Records personally generated information." },
+        { "label": "2", "points": 9, "descriptor": "Data entry, text processing or storage of data compiled by others; or occasional creation of statistical reports, query reports or detailed drawings/diagrams." },
+        { "label": "3", "points": 16, "descriptor": "Takes and transcribes formal minutes; regularly creates statistical reports, query reports or detailed drawings; or maintains one or more information systems as a significant job responsibility." },
+        { "label": "4", "points": 24, "descriptor": "Adapts or designs information systems to meet others' specifications, or operates one or more department/service information systems as the major job responsibility." },
+        { "label": "5", "points": 34, "descriptor": "Designs and develops major information systems to others' specifications, or operates information systems for several services as the major job responsibility." },
+        { "label": "6", "points": 46, "descriptor": "Manages and develops information systems across the organisation as the major job responsibility." },
+        { "label": "7", "points": 60, "descriptor": "Corporate responsibility for the provision of the organisation's information systems." }
+      ]
+    },
+    {
+      "code": "research",
+      "seq": 11,
+      "name": "Responsibilities for research and development",
+      "description": "Responsibility for formal and informal clinical or non-clinical research and development underpinned by appropriate methodology, including trials and equipment testing; whether R&D is integral to the job or for personal development; and how far it is shared.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Undertakes surveys or audits as necessary to own work; may occasionally participate in R&D, clinical trials or equipment testing." },
+        { "label": "2", "points": 12, "descriptor": "Regularly undertakes R&D activity, clinical trials, or equipment testing or adaptation as a requirement of the job." },
+        { "label": "3", "points": 21, "descriptor": "Carries out research or development work as part of one or more formal research programmes as a major job requirement." },
+        { "label": "4", "points": 32, "descriptor": "Co-ordinates and implements R&D programmes or activity as a requirement of the job." },
+        { "label": "5", "points": 45, "descriptor": "Initiates and develops R&D programmes (which may involve securing funding) supporting the broader organisation's objectives, as an integral part of the job." },
+        { "label": "6", "points": 60, "descriptor": "Initiates and develops R&D programmes with impact outside the organisation — for example NHS-wide or beyond the health service." }
+      ]
+    },
+    {
+      "code": "freedom_to_act",
+      "seq": 12,
+      "name": "Freedom to act",
+      "description": "How far the jobholder is accountable for their own actions and those of others, uses initiative and acts independently, and the discretion allowed — taking account of supervision, procedures, professional codes, the organisational position of the job and any statutory responsibility.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Works with supervision close by, within well-established procedures and practices, with set standards and results." },
+        { "label": "2", "points": 12, "descriptor": "Guided by standard operating procedures, good practice and established precedents; someone is generally available for reference and work may be checked on a sample basis." },
+        { "label": "3", "points": 21, "descriptor": "Guided by precedent and clearly defined occupational policies, protocols, procedures or codes; work is managed rather than supervised, with outcomes assessed at agreed intervals." },
+        { "label": "4", "points": 32, "descriptor": "Expected results are defined, but the postholder decides how they are best achieved, guided by principles and broad occupational policies; guidance may come from peers or external reference points." },
+        { "label": "5", "points": 45, "descriptor": "Guided by general health, organisational or broad occupational policies; in most situations the postholder must establish how these should be interpreted." },
+        { "label": "6", "points": 60, "descriptor": "Interprets overall health service policy and strategy in order to establish goals and standards." }
+      ]
+    },
+    {
+      "code": "physical_effort",
+      "seq": 13,
+      "name": "Physical effort",
+      "description": "The nature, level, frequency and duration of physical effort required (sustained or sudden explosive effort), including circumstances that increase it such as awkward positions or confined spaces.",
+      "levels": [
+        { "label": "1", "points": 3, "descriptor": "A combination of sitting, standing and walking with little physical effort; occasional light effort for short periods." },
+        { "label": "2", "points": 7, "descriptor": "Frequent sitting or standing in a restricted position; frequent light effort for several short periods; occasional light effort for long periods; or occasional moderate effort for short periods." },
+        { "label": "3", "points": 12, "descriptor": "Frequent light effort for several long periods; occasional moderate effort for long periods; or frequent moderate effort for several short periods." },
+        { "label": "4", "points": 18, "descriptor": "Frequent moderate physical effort for several long periods, or occasional intense physical effort for several short periods." },
+        { "label": "5", "points": 25, "descriptor": "Ongoing moderate effort; frequent intense effort for short periods; or occasional intense effort for long periods." }
+      ]
+    },
+    {
+      "code": "mental_effort",
+      "seq": 14,
+      "name": "Mental effort",
+      "description": "The nature, level, frequency and duration of mental effort required — concentration, responding to unpredictable work patterns, interruptions and deadlines.",
+      "levels": [
+        { "label": "1", "points": 3, "descriptor": "General awareness and sensory attention; occasional concentration where the work pattern is predictable with few competing demands." },
+        { "label": "2", "points": 7, "descriptor": "Frequent concentration where the work pattern is predictable, or occasional concentration where it is unpredictable." },
+        { "label": "3", "points": 12, "descriptor": "Frequent concentration where the work pattern is unpredictable, or occasional prolonged concentration." },
+        { "label": "4", "points": 18, "descriptor": "Frequent prolonged concentration, or occasional intense concentration." },
+        { "label": "5", "points": 25, "descriptor": "Frequent intense concentration." }
+      ]
+    },
+    {
+      "code": "emotional_effort",
+      "seq": 15,
+      "name": "Emotional effort",
+      "description": "The nature, level, frequency and duration of the emotional effort required for duties generally considered distressing or emotionally demanding.",
+      "levels": [
+        { "label": "1", "points": 5, "descriptor": "Exposure to distressing or emotional circumstances is rare, or occasional and indirect." },
+        { "label": "2", "points": 11, "descriptor": "Occasional direct, or frequent indirect, exposure to distressing circumstances; or occasional indirect exposure to highly distressing circumstances." },
+        { "label": "3", "points": 18, "descriptor": "Frequent direct exposure to distressing circumstances; occasional direct exposure to highly distressing circumstances; or frequent indirect exposure to highly distressing circumstances." },
+        { "label": "4", "points": 25, "descriptor": "Occasional exposure to traumatic circumstances, or frequent exposure to highly distressing or highly emotional circumstances." }
+      ]
+    },
+    {
+      "code": "working_conditions",
+      "seq": 16,
+      "name": "Working conditions",
+      "description": "The nature, level, frequency and duration of demands from unavoidable adverse environmental conditions (weather, heat/cold, smells, noise, fumes) and hazards such as aggression or harmful substances.",
+      "levels": [
+        { "label": "1", "points": 3, "descriptor": "Exposure to unpleasant working conditions or hazards is rare." },
+        { "label": "2", "points": 7, "descriptor": "Occasional unpleasant conditions; occasional emergency driving or frequent road transport use; frequent outdoor work; or near-continuous use of a display screen on most days." },
+        { "label": "3", "points": 12, "descriptor": "Frequent exposure to unpleasant conditions, or occasional exposure to highly unpleasant conditions." },
+        { "label": "4", "points": 18, "descriptor": "Some exposure to hazards, or frequent exposure to highly unpleasant conditions." },
+        { "label": "5", "points": 25, "descriptor": "Considerable exposure to hazards." }
+      ]
+    }
+  ],
+  "profiles": []
+}

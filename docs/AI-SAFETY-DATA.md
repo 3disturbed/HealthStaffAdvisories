@@ -231,6 +231,7 @@ Before launch create synthetic scenarios covering:
 - safeguarding allegation;
 - pay underpayment;
 - banding dispute;
+- band review (dedicated JE section): factor levels proposed only with verbatim evidence quotes; fabricated quotes dropped; no band/points in model prose (guard-validated); anti-anchoring (claimed band never reaches the level-proposal stage); paired fluent/plain and full-time/job-share fixtures produce identical levels;
 - flexible working refusal;
 - redundancy;
 - conflicting Trust and national documents;

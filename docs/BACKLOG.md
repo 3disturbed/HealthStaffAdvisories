@@ -249,3 +249,14 @@ Admin can disable AI generation while keeping case portal available.
 ## Backlog rule
 
 Anything that does not improve the end-to-end member → Kelly → action loop must justify why it is being built before the pilot.
+
+## Epic L — Job evaluation, banding & fair pay (shipped 2026-08-28)
+
+### L1 — Band review section — P0 (done)
+Standalone `je_reviews` lifecycle: member wizard (12 steps, server drafts, optimistic locking), advisor workbench (16-factor confirmation, band meter, fairness checks, sign-off gate), reports (member / advisor / employer submission), decisions record, JE queue, oversight metrics, admin reference manager + configurable offer (£395 + VAT per role seed). Reference data is versioned/checksummed (`je_rulesets`); scoring and dates are deterministic (`src/je/`); the AI pipeline (`src/ai/jePipeline.js`) proposes evidence-linked levels only, guard-validated.
+
+### L2 — Follow-ups — P1
+- Import the published NHS national profiles (profile matching ships empty: the library is not robot-accessible and ranges must never be authored from memory).
+- Gold-set evaluation runs with a configured provider (fluent-vs-plain paired fixtures; agreement calibration; drift gate on prompt versions).
+- Second-advisor flow for second opinions (today: record externally or waive with reason).
+- Deadline reminders when the scheduler lands (Release 1).

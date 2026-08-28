@@ -1,4 +1,4 @@
-import { api, esc, el, fmtDate, requireUser, can, showNotice } from '/common.js';
+import { api, esc, escAttr, el, fmtDate, requireUser, can, showNotice } from '/common.js';
 import { installPanel, wireInstallPanel } from '/install-ui.js';
 import { enterView, setBusy, toast, skelForm } from '/ui.js';
 
@@ -29,7 +29,7 @@ async function render() {
       <p class="small muted">${esc(profile.email)}</p>
       <form id="profile-form">
         <label for="displayName">Display name</label>
-        <input id="displayName" type="text" value="${esc(profile.displayName)}" maxlength="80" required>
+        <input id="displayName" type="text" value="${escAttr(profile.displayName)}" maxlength="80" required>
         <p><button class="btn small" type="submit">Save name</button></p>
       </form>
     </div>

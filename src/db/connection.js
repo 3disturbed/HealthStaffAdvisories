@@ -35,15 +35,46 @@ const MIGRATIONS = [
    UPDATE assistant_actions SET thread_id =
      (SELECT t.id FROM assistant_threads t WHERE t.user_id = assistant_actions.user_id LIMIT 1)
      WHERE thread_id IS NULL;`,
+  // v3 — job evaluation: ai_outputs may belong to a JE review instead of a
+  // case (rebuild: case_id becomes nullable; je_review_id/je_stage added);
+  // notifications learn to deep-link to a review. Runs with foreign_keys
+  // OFF (see the migration loop) so the rebuild cannot cascade-delete
+  // citations rows.
+  `CREATE TABLE ai_outputs_v3 (
+     id INTEGER PRIMARY KEY,
+     case_id INTEGER REFERENCES cases(id) ON DELETE CASCADE,
+     je_review_id INTEGER REFERENCES je_reviews(id) ON DELETE CASCADE,
+     je_stage TEXT,
+     task TEXT NOT NULL,
+     provider TEXT NOT NULL,
+     model TEXT NOT NULL,
+     prompt_version TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'ok',
+     output_json TEXT NOT NULL,
+     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+   );
+   INSERT INTO ai_outputs_v3 (id, case_id, task, provider, model, prompt_version, status, output_json, created_at)
+     SELECT id, case_id, task, provider, model, prompt_version, status, output_json, created_at FROM ai_outputs;
+   DROP TABLE ai_outputs;
+   ALTER TABLE ai_outputs_v3 RENAME TO ai_outputs;
+   CREATE INDEX IF NOT EXISTS idx_ai_case ON ai_outputs(case_id);
+   CREATE INDEX IF NOT EXISTS idx_ai_je ON ai_outputs(je_review_id, je_stage);
+   ALTER TABLE notifications ADD COLUMN je_review_id INTEGER REFERENCES je_reviews(id) ON DELETE CASCADE;`,
 ];
 {
   let version = db.prepare('PRAGMA user_version').get().user_version;
-  while (version < MIGRATIONS.length) {
-    db.exec('BEGIN');
-    db.exec(MIGRATIONS[version]);
-    version += 1;
-    db.exec(`PRAGMA user_version = ${version}`);
-    db.exec('COMMIT');
+  if (version < MIGRATIONS.length) {
+    // FK enforcement off for the duration so table rebuilds (drop + rename)
+    // cannot cascade-delete dependent rows; re-enabled straight after.
+    db.exec('PRAGMA foreign_keys = OFF');
+    while (version < MIGRATIONS.length) {
+      db.exec('BEGIN');
+      db.exec(MIGRATIONS[version]);
+      version += 1;
+      db.exec(`PRAGMA user_version = ${version}`);
+      db.exec('COMMIT');
+    }
+    db.exec('PRAGMA foreign_keys = ON');
   }
 }
 

@@ -6,7 +6,7 @@ export const notificationsRouter = Router();
 
 notificationsRouter.get('/', requireAuth, (req, res) => {
   const rows = db
-    .prepare(`SELECT id, type, title, body, case_id, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 30`)
+    .prepare(`SELECT id, type, title, body, case_id, je_review_id, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 30`)
     .all(req.user.id);
   res.json({ notifications: rows, unread: rows.filter((n) => !n.read_at).length });
 });

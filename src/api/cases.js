@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { db } from '../db/connection.js';
 import { requirePermission } from '../auth/middleware.js';
-import { assessUrgency } from '../safety/urgency.js';
+import { assessUrgency, maxUrgency } from '../safety/urgency.js';
+import { assessJeSignals } from '../safety/jeUrgency.js';
 import { audit } from '../audit/log.js';
 import { notifyUser, sendNotificationEmail } from '../notify/mailer.js';
 import { userHas } from '../rbac/permissions.js';
@@ -81,7 +82,10 @@ casesRouter.post('/', requirePermission('cases.own'), (req, res) => {
     desiredOutcome: String(req.body.desiredOutcome || '').trim().slice(0, 400),
   };
 
-  const { urgency, triggers } = assessUrgency(whatHappened, fields);
+  const base = assessUrgency(whatHappened, fields);
+  const jeSignals = assessJeSignals(whatHappened, fields);
+  const urgency = maxUrgency(base.urgency, jeSignals.urgency);
+  const triggers = [...base.triggers, ...jeSignals.triggers];
   const title = whatHappened.split('\n')[0].slice(0, 80);
 
   const info = db
@@ -120,7 +124,7 @@ casesRouter.post('/', requirePermission('cases.own'), (req, res) => {
     runIntake(caseId).catch((err) => console.error(`AI intake failed for case ${caseId}: ${err.message}`));
   }
 
-  res.json({ ok: true, caseId, urgency, urgent: triggers.length > 0, aiQueued });
+  res.json({ ok: true, caseId, urgency, urgent: triggers.length > 0, aiQueued, jeInterest: jeSignals.flags.length > 0 });
 });
 
 casesRouter.get('/', requirePermission('cases.own'), (req, res) => {

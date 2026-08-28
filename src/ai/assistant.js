@@ -1,10 +1,9 @@
-import OpenAI from 'openai';
-import { db, getSetting } from '../db/connection.js';
+import { db } from '../db/connection.js';
 import { permissionsForUser, userHas } from '../rbac/permissions.js';
 import { ASSISTANT_SYSTEM_PROMPT, ASSISTANT_PROMPT_VERSION } from './prompts.js';
 import { toolByName, toolDefinitions } from './assistantTools.js';
 import { audit } from '../audit/log.js';
-import { config } from '../config.js';
+import { aiEnabled, completeChat } from './provider.js';
 
 const MAX_LOOP = 6;
 const HISTORY_ROWS = 40;
@@ -13,12 +12,7 @@ const ACTION_TTL_MINUTES = 10;
 const MAX_THREADS = 12;
 
 function defaultComplete(messages, tools) {
-  const client = new OpenAI({ apiKey: getSetting('openai_api_key') });
-  return client.chat.completions.create({
-    model: getSetting('ai_model', config.defaultAiModel),
-    messages,
-    ...(tools.length > 0 ? { tools, parallel_tool_calls: false } : {}),
-  });
+  return completeChat(messages, tools);
 }
 
 // ── threads ──────────────────────────────────────────────────────────────
@@ -237,7 +231,7 @@ export async function confirmAction(user, actionId, { complete = defaultComplete
   audit(user.id, 'assistant.action_executed', 'assistant_action', row.id, { tool: row.tool_name, ok: !result.error, edited });
 
   // Best-effort follow-up so the chat reflects the outcome; no tools.
-  if (getSetting('ai_disabled', '0') !== '1' && getSetting('openai_api_key')) {
+  if (aiEnabled()) {
     try {
       const response = await complete(
         [{ role: 'system', content: ASSISTANT_SYSTEM_PROMPT }, ...historyFor(user.id, row.thread_id)],

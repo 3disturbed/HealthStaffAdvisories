@@ -35,7 +35,7 @@ test('entry documents are never cached, so a new build is always discoverable', 
 });
 
 test('scripts and styles must revalidate before reuse', async () => {
-  for (const asset of ['/common.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
+  for (const asset of ['/common.js', '/escape.js', '/styles.css', '/version-check.js', '/pwa-early.js']) {
     const res = await fetch(base + asset);
     assert.equal(res.status, 200, `${asset} should be served`);
     assert.equal(res.headers.get('cache-control'), 'no-cache', `${asset} should revalidate`);

@@ -1,4 +1,4 @@
-import { api, esc, fmtDate, fmtDay, requireUser, can } from '/common.js';
+import { api, esc, escAttr, fmtDate, fmtDay, requireUser, can } from '/common.js';
 import { enterView, stagger, setBusy, toast, openSheet, closeSheet, dueChip, emptyState, countUp, skelCases, skelCaseDetail } from '/ui.js';
 
 const view = document.getElementById('view');
@@ -55,7 +55,7 @@ function cardHtml(c, extraClass = '') {
     <a class="case-card ${extraClass}" href="#/case/${c.id}">
       ${extraClass.includes('next-up') ? '<span class="tag role">Next up</span>' : ''}
       <h3>#${c.id} · ${esc(c.title)}</h3>
-      <span class="tag ${esc(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
+      <span class="tag ${escAttr(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
       <span class="tag status">${esc(c.statusLabel)}</span>
       ${c.nextImportantAt ? dueChip(c.nextImportantAt) : ''}
       ${c.openEscalations ? `<span class="tag critical">${c.openEscalations} escalation${c.openEscalations > 1 ? 's' : ''}</span>` : ''}
@@ -188,7 +188,7 @@ async function renderCase(id) {
     <p><a href="#/">&larr; Today</a></p>
     <h1>#${c.id} · ${esc(c.title)}</h1>
     <p>
-      <span class="tag ${esc(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
+      <span class="tag ${escAttr(c.urgency)}">${esc(c.urgency.replace('_', ' '))}</span>
       <span class="tag status">${esc(c.statusLabel)}</span>
       <span class="tag">${esc(c.typeLabel)}</span>
       ${c.nextImportantAt ? dueChip(c.nextImportantAt) : ''}
@@ -218,7 +218,7 @@ async function renderCase(id) {
     </div>
     <div class="card">
       <h3 class="mt0">Member</h3>
-      <p>${esc(c.member)} · <a href="mailto:${esc(c.memberEmail)}">${esc(c.memberEmail)}</a><br>
+      <p>${esc(c.member)} · <a href="mailto:${escAttr(c.memberEmail)}">${esc(c.memberEmail)}</a><br>
       <span class="muted small">Member since ${esc(fmtDay(c.memberSince))}</span></p>
       <p><strong>Employer:</strong> ${esc(c.employer || '—')}<br>
       <strong>Role/staff group:</strong> ${esc(c.staffGroup || '—')}<br>
@@ -316,7 +316,7 @@ async function renderCase(id) {
         <label for="ctl-urgency">Urgency</label>
         <select id="ctl-urgency">${URGENCY_OPTIONS.map((v) => `<option value="${v}" ${v === c.urgency ? 'selected' : ''}>${v.replace('_', ' ')}</option>`).join('')}</select>
         <label for="ctl-next">Next important date</label>
-        <input type="date" id="ctl-next" value="${esc(c.nextImportantAt || '')}">
+        <input type="date" id="ctl-next" value="${escAttr(c.nextImportantAt || '')}">
         <p><button class="btn" type="submit">Save</button></p>
         <div id="sheet-msg"></div>
       </form>`);
@@ -373,7 +373,13 @@ async function route() {
     const caseMatch = hash.match(/^#\/case\/(\d+)$/);
     const queueMatch = hash.match(/^#\/queue(?:\/(\w+))?$/);
     if (caseMatch) await renderCase(Number(caseMatch[1]));
-    else if (queueMatch) await renderQueue(queueMatch[1] || 'urgent');
+    else if (hash.startsWith('#/banding')) {
+      // Band review workspace: heavy view code loads on demand.
+      setActionBar(false);
+      view.innerHTML = '<p class="muted">Loading\u2026</p>';
+      const m = await import('/banding-advisor.js');
+      await m.route(view, user, hash);
+    } else if (queueMatch) await renderQueue(queueMatch[1] || 'urgent');
     else await renderToday();
   } catch (err) {
     setActionBar(false);

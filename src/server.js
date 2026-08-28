@@ -3,6 +3,7 @@ import path from 'node:path';
 import { config } from './config.js';
 import { BUILD_VERSION } from './version.js';
 import { seedAdmin } from './db/connection.js';
+import { seedJeRuleset } from './je/reference.js';
 import { attachUser, csrfGuard } from './auth/middleware.js';
 import { authRouter } from './api/auth.js';
 import { casesRouter } from './api/cases.js';
@@ -13,6 +14,7 @@ import { documentsRouter } from './api/documents.js';
 import { knowledgeRouter } from './api/knowledge.js';
 import { notificationsRouter } from './api/notifications.js';
 import { accountRouter } from './api/account.js';
+import { jeRouter } from './api/je.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -59,6 +61,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/knowledge', knowledgeRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/account', accountRouter);
+app.use('/api/je', jeRouter);
 app.use('/api', documentsRouter);
 
 // Current build fingerprint. Clients poll this and self-heal when the
@@ -96,6 +99,7 @@ app.use((err, req, res, next) => {
 });
 
 const seeded = seedAdmin();
+seedJeRuleset();
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(config.port, () => {

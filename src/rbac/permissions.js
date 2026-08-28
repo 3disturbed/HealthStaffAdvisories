@@ -12,12 +12,17 @@ export const PERMISSIONS = {
   'users.manage': 'Grant and remove roles/permissions on accounts',
   'audit.view': 'View the audit log',
   'system.admin': 'Operational admin (AI kill switch, dev mailbox)',
+  'je.own': 'Start and view own band reviews',
+  'je.review': 'Work the job evaluation queue and confirm factor levels',
+  'je.decide': 'Sign off assessments, issue JE reports and record outcomes',
+  'je.reference.manage': 'Import, approve and verify job evaluation reference data',
+  'je.monitor': 'View aggregate job evaluation quality metrics',
 };
 
 export const ROLE_DEFAULTS = {
-  member: ['cases.own'],
-  advisor: ['cases.review', 'cases.respond', 'cases.notes', 'cases.status', 'knowledge.manage'],
-  admin: ['users.manage', 'audit.view', 'system.admin', 'knowledge.manage'],
+  member: ['cases.own', 'je.own'],
+  advisor: ['cases.review', 'cases.respond', 'cases.notes', 'cases.status', 'knowledge.manage', 'je.review', 'je.decide'],
+  admin: ['users.manage', 'audit.view', 'system.admin', 'knowledge.manage', 'je.reference.manage', 'je.monitor'],
 };
 
 export const ROLES = Object.keys(ROLE_DEFAULTS);

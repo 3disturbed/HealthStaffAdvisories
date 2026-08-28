@@ -103,6 +103,54 @@ AC: audit rows render as stacked cards under 700px with a client-side actor/acti
 **A6 — Supersede in place.** *As a knowledge manager, I want new source versions added without losing my place.*
 AC: "Supersede…" expands inline under the source row; current version and counts stay visible.
 
+## Member — band reviews (M8–M13)
+
+**M8 — A band review I can do in pieces.** *As a member whose job has grown, I want to build my case over days or weeks without losing anything, so that gathering a job description or asking a colleague does not cost me my progress.*
+AC: `#/banding/new` creates a server-side review before the first question, so nothing is ever unsaved; every answer autosaves to `PATCH /api/je/reviews/:id/answers` on step change, on an 800ms input debounce, and on `pagehide` via `fetch(keepalive)` (never `sendBeacon` — it cannot carry the CSRF header); the save state is always visible ("Saving…" / "All answers saved" / "Not saved — check your connection"); a concurrent edit returns 409 with the server state and a Keep-mine/Use-theirs choice, never a silent overwrite; a sessionStorage crash buffer is offered back, never auto-applied; drafts are never auto-deleted.
+
+**M9 — Questions about my job, not about job evaluation.** *As a member with no HR background, I want to be asked what I actually do, so that I never have to learn what a "factor" is.*
+AC: 12 steps in 4 named groups with a grouped segment bar; the evidence steps use everyday language covering all 16 scheme factors without naming any of them; cues surface commonly under-claimed work (supervising students, ordering stock, the emotional load) with the instruction "Write it how you'd say it — short answers are fine"; only the risk acknowledgement and job title are required; every evidence step offers Skip for now and Save and finish later; a review step allows per-item edits before one submit; the wording is versioned (`question_set_version`) on the review.
+
+**M10 — Naming a colleague is my choice, not the default.** *As a member citing a better-paid colleague, I want their information protected unless they have agreed, so that making my case does not expose someone else.*
+AC: comparators default to anonymised ("A colleague in my team, Band 6") with a plain explanation of why; naming requires an explicit "they know and are happy to be named" tick stored as `named_consent`; the employer submission renders anonymised unless consent was recorded; banding/equal-pay signals in case text fire deterministic rules (`src/safety/jeUrgency.js`), never AI.
+
+**M11 — A result that tells me what to do.** *As a member who has waited, I want a report that ends in things I can actually do, so that I am not left holding an analysis.*
+AC: the report is released only after Kelly's sign-off and approval (share gate in `src/je/guard.js`); "What to do next" is at most five actions each with an owner; the indicative band appears in a dashed chip with the standard sentence ("…does not decide your band…") in the opening and the footer; the footer names the reference ruleset, its checksum and whether it has been human-verified; no points totals or factor jargon appear.
+
+**M12 — Something I can actually send.** *As a member ready to act, I want the formal request already written, so that I do not have to translate my own report into HR language.*
+AC: the employer submission has six fixed sections plus annexes, built from the duty log and confirmed factor levels; it excludes the indicative band range unless Kelly explicitly opts in with a recorded reason; both documents print to A4 via the print stylesheet (palette reset applies in dark mode) and the submission downloads as Markdown (`GET /api/je/reviews/:id/submission.md`).
+
+**M13 — Band reviews live in my portal.** *As a member, I want my band review where my cases are, so that I have one place to look.*
+AC: the section lives at `#/banding/*` inside the member shell (lazy-loaded `banding-member.js`); the Cases tab stays lit throughout `#/banding/*` and Start during `#/banding/new` via `also` prefix matching; a "Pay / banding" case whose text mentions banding offers the band review route after submission; the tab bar stays at five tabs for every role.
+
+## Kelly — band reviews (K7–K11)
+
+**K7 — Every factor reviewed, or explicitly not.** *As Kelly, I want to work through the assessment factor by factor, so that nothing reaches a member on the strength of an unreviewed suggestion.*
+AC: 16 factor rows with four visible states (unreviewed / confirmed / changed / not enough information), each an icon + text label, never colour alone; an AI proposal shows its confidence, rationale, descriptor and verbatim evidence quotes with provenance; a proposal with no evidence item cannot be confirmed (server-enforced); changing a proposed level requires a reason code; manually setting a level where no proposal exists is a plain confirm; on blind-sampled reviews the proposal is hidden until Kelly records her own decision.
+
+**K8 — Arithmetic I can trust while it is incomplete.** *As Kelly mid-assessment, I want the running total honest about what is unresolved, so that I never read a provisional number as a result.*
+AC: the band meter shows confirmed points as a solid fill and the unresolved range as a hatched extension with band boundary ticks from the pinned ruleset; a single band is asserted only when every factor is resolved AND the sensitivity range collapses to one band; unknown factors widen the range from the factor's minimum to its maximum — absence of evidence never scores low; every outcome is append-only with the ruleset checksum and full computation snapshot.
+
+**K9 — Nothing reaches the member until I release it.** *As Kelly, I want a sign-off gate, so that release is a deliberate act.*
+AC: sign-off requires every factor resolved, every high/critical flag acknowledged, all ten fairness checklist items actively ticked (no default state), an outcome recommendation, and the personal attestation; the disabled button is `aria-describedby` an itemised outstanding list; second opinions are required on wide ranges, downbanding risk, equal pay, appeals, high disagreement or collective matters — waivable only with a recorded reason; report approval is claim-then-execute (a lost race returns 410) and issues exactly one member message with `approved_by` set.
+
+**K10 — The record of what actually happened.** *As Kelly, I want employer decisions recorded, so that the only real bands in the system are the ones a panel actually awarded.*
+AC: `je_decisions` is the sole entry point for an awarded band; recording an outcome advances the stage machine and fires the appeal-window check; every date carries a confirmed/unconfirmed flag; time-limit wording is always "may have passed — verify", never "has passed".
+
+**K11 — Fairness checked, not assumed.** *As Kelly, I want the fairness questions asked of me every time, so that consistency does not depend on my memory.*
+AC: deterministic checks cover missing/stale JD, unevidenced factors, boundary-sensitive totals, claim gaps, downbanding exposure, equal-pay comparators and cross-review variance; each high/critical check must be acknowledged before sign-off; acknowledgements and every amend reason are audited as codes, never narrative.
+
+## Admin — band reviews (A7–A9)
+
+**A7 — Reference data is loaded, never remembered.** *As an admin, I want the factor plan, points, band boundaries and profiles held as versioned data, so that no scheme constant ever lives in code or comes from an AI's memory.*
+AC: rulesets are checksummed bundles with all-or-nothing validation (contiguous bands, strictly increasing points, real factor/level references); one approved ruleset per scheme (DB-enforced); approving supersedes and flags open reviews without touching their outcomes; the bundled seed ships `origin='seed'` and every report footer says "not yet verified" until an admin marks it verified against the published handbook; scoring is unavailable (503) with no approved ruleset — there is no fallback to model memory.
+
+**A8 — Fairness visible in aggregate, never in narrative.** *As an admin, I want to see whether the AI and Kelly agree, without reading anyone's case.*
+AC: the oversight dashboard shows AI-vs-confirmed agreement per factor with blind and sighted rates separated, amend-reason breakdowns, waiver and pipeline health counts, and reference status; no member name, quote or narrative appears; the JE audit trail records ids, codes and counts only (tested by allowlist).
+
+**A9 — The offer is configurable.** *As an admin, I want the paid offer editable, so that pricing changes don't need a deploy.*
+AC: `settings.je_offer` seeds at £395 + VAT per role with six inclusions; the admin Job evaluation tab edits price, VAT, unit, headline, inclusions and enablement; members see the offer card on the banding hub; the audit event records field names only, never values.
+
 ## Navigation spec
 
 Bottom tab bar on mobile (<768px), built from the same permission checks as the header nav — never a superset. Desktop keeps the header nav; the bar hides.
@@ -114,7 +162,7 @@ Bottom tab bar on mobile (<768px), built from the same permission checks as the 
 | Admin (non-advisor) | Overview · Users* · Assistant* · Alerts · Account *(permission-gated)* |
 | Signed-out visitor | Sticky CTA bar: Create free account · Sign in |
 
-Multi-role accounts get the highest workspace's tabs (advisor > admin > member); everything else stays reachable via Account quick links and the header. Alerts is one shared notifications sheet for every role; opening it marks notifications read and deep-links per role (advisors → advisor case view, members → portal case view).
+Multi-role accounts get the highest workspace's tabs (advisor > admin > member); everything else stays reachable via Account quick links and the header. The band review section lives at `#/banding/*` inside the member and advisor shells; tab definitions carry an optional `also` list of hash prefixes matched longest-first, so `#/banding/new` lights Start and `#/banding/*` lights Cases (member) or Queue (advisor). No role gains a sixth tab. Alerts is one shared notifications sheet for every role; opening it marks notifications read and deep-links per role (advisors → advisor case view, members → portal case view).
 
 ## Status → journey mapping (member)
 
@@ -127,14 +175,26 @@ Multi-role accounts get the highest workspace's tabs (advisor > admin > member);
 | `action_plan_ready` / `ongoing` | 4 Action plan | "Your action plan is ready" / "Kelly is checking in" |
 | `closed` | journey complete | "Closed — Kelly can reopen it" |
 
+## Band review stage → journey mapping (member)
+
+| Review stage | Journey step | Member reads |
+| --- | --- | --- |
+| `draft` | 1 Your job | "Getting started" |
+| `member_submitted` | 2 With Kelly | "Sent to Kelly" |
+| `analysing` / `advisor_review` | 3 Being assessed | "Kelly is working through it" |
+| `report_ready` | 4 Your report | "Report ready" |
+| `submitted_to_employer` / `employer_review` | 5 With your employer | "With your employer" |
+| `outcome_received` / appeal / `closed` | journey complete | outcome / appeal wording |
+
 ## API deltas shipped for this work
 
 - `GET /api/advisor/queue`: additive `lastMessageBy` / `lastMessageAt` per card (powers K1's "Member replied" bucket).
 - Everything else is client-only: theme (localStorage + pre-paint boot script), tab bar, sheets, wizard, journey mapping, overview tiles composed from existing endpoints.
+- Band reviews: the whole `/api/je/*` surface is new and additive (reviews, answers, documents, comparators, messages, factors, sign-off, reports, decisions, queue, oversight, reference, offer); `notifications` gains nullable `je_review_id`; `ai_outputs` gains nullable `je_review_id`/`je_stage` (case_id now nullable via rebuild migration v3); `POST /api/cases` adds `jeInterest` to its response.
 
 ## Must not regress
 
-Permission gating (tab bar from the same `can()` checks); AI labelling and safety notices verbatim; assistant approve-before-send; urgent-help banners (may move earlier, never later or smaller); PII-redaction warnings; request-review gating; private-note visibility; API contracts (additive only); strict CSP (no inline styles/scripts); the cache-versioning self-heal.
+Permission gating (tab bar from the same `can()` checks); AI labelling and safety notices verbatim; assistant approve-before-send; urgent-help banners (may move earlier, never later or smaller); PII-redaction warnings; request-review gating; private-note visibility; API contracts (additive only); strict CSP (no inline styles/scripts); the cache-versioning self-heal. Band reviews add: the case wizard's 7 steps and single `POST /api/cases` body shape survive the wizard-engine extraction (M2); nothing from a band assessment reaches a member before sign-off + approval; comparator anonymity by default; the reference ruleset label/checksum/verification status on every assessment screen and report footer; the print palette reset applying in dark mode; no scheme constant (factor, points, band boundary) in application code — reference data only.
 
 ## Out of scope (for now)
 

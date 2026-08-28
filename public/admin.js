@@ -1,4 +1,4 @@
-import { api, esc, fmtDate, requireUser, can } from '/common.js';
+import { api, esc, escAttr, safeUrl, fmtDate, requireUser, can } from '/common.js';
 import { enterView, stagger, toast, setBusy, countUp, skelTable, emptyState } from '/ui.js';
 
 const view = document.getElementById('view');
@@ -14,6 +14,7 @@ const TAB_DEFS = () => {
   if (canUseAssistant()) tabs.push(['assistant', 'Assistant']);
   if (can(user, 'system.admin')) tabs.push(['settings', 'AI settings'], ['mailbox', 'Dev mailbox']);
   if (can(user, 'knowledge.manage')) tabs.push(['knowledge', 'Knowledge sources']);
+  if (['je.reference.manage', 'je.monitor'].some((p) => can(user, p))) tabs.push(['banding', 'Job evaluation']);
   if (can(user, 'audit.view')) tabs.push(['audit', 'Audit log']);
   return tabs;
 };
@@ -198,7 +199,7 @@ async function renderSettings() {
         <p class="hint">Paste a key to set or replace it. The key is stored server-side and never shown again in full.</p>
         <input id="apiKey" type="password" autocomplete="off" placeholder="sk-…">
         <label for="aiModel">Model</label>
-        <input id="aiModel" type="text" value="${esc(s.aiModel)}">
+        <input id="aiModel" type="text" value="${escAttr(s.aiModel)}">
         <p><button class="btn" type="submit">Save settings</button>
         ${s.openaiKeyMasked ? '<button class="btn danger" type="button" id="clear-key">Remove key</button>' : ''}</p>
       </form>
@@ -280,7 +281,7 @@ async function renderKnowledge() {
           <p class="small mt0"><span class="tag">${esc(s.source_type.replace('_', ' '))}</span>
             <span class="tag status">${esc(s.current_version || '—')}</span>
             <span class="muted small">${s.chunk_count} chunks · ${s.version_count} version${s.version_count === 1 ? '' : 's'}</span>
-            ${s.canonical_url ? ` · <a class="small" href="${esc(s.canonical_url)}" target="_blank" rel="noopener">source link</a>` : ''}</p>
+            ${s.canonical_url ? (safeUrl(s.canonical_url) ? ` · <a class="small" href="${escAttr(s.canonical_url)}" target="_blank" rel="noopener">source link</a>` : ` · <span class="small">${esc(s.canonical_url)}</span>`) : ''}</p>
           <p class="mt0"><button class="btn small quiet" data-newver="${s.id}">Supersede…</button></p>
           <div class="newver-slot hidden" data-slot="${s.id}"></div>
         </div>`).join('') || emptyState({ icon: 'file', title: 'No knowledge sources yet', body: 'Add approved guidance so AI answers can cite real sources.' })}
@@ -349,7 +350,7 @@ async function renderAudit() {
       <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Object</th><th>Detail</th></tr></thead>
       <tbody>
       ${data.events.map((e) => `
-        <tr data-blob="${esc(`${e.actor_email || 'system'} ${e.action}`.toLowerCase())}">
+        <tr data-blob="${escAttr(`${e.actor_email || 'system'} ${e.action}`.toLowerCase())}">
           <td class="small">${esc(fmtDate(e.created_at))}</td>
           <td class="small">${esc(e.actor_email || 'system')}</td>
           <td><strong>${esc(e.action)}</strong></td>
@@ -380,6 +381,12 @@ async function route() {
     else if (tab === 'settings') await renderSettings();
     else if (tab === 'mailbox') await renderMailbox();
     else if (tab === 'knowledge') await renderKnowledge();
+    else if (tab === 'banding') {
+      view.innerHTML = `<h1>Admin</h1>${tabsBar('banding')}<p class="muted">Loading\u2026</p>`;
+      wireTabs();
+      const m = await import('/banding-admin.js');
+      await m.renderAdminTab(view, user, { tabsBar, wireTabs });
+    }
     else await renderAudit();
   } catch (err) {
     view.innerHTML = `<h1>Admin</h1>${tabsBar('')}<div class="notice error">${esc(err.message)}</div>`;

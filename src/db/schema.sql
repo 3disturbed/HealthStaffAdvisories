@@ -263,3 +263,402 @@ CREATE TABLE IF NOT EXISTS assistant_actions (
   resolved_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_actions_user ON assistant_actions(user_id, status);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Job evaluation & banding (standalone section; scheme-agnostic reference
+-- data). Reference numerics (factors, level points, band boundaries,
+-- profiles) are DATA — loaded, versioned, checksummed and approved. No AfC
+-- constant may appear in application code.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS je_rulesets (
+  id INTEGER PRIMARY KEY,
+  label TEXT NOT NULL,
+  scheme TEXT NOT NULL DEFAULT 'afc',
+  status TEXT NOT NULL DEFAULT 'draft', -- draft | approved | superseded
+  origin TEXT NOT NULL DEFAULT 'import', -- seed | import
+  effective_from TEXT,
+  checksum TEXT NOT NULL,                -- sha256 of the canonical bundle
+  match_rules_json TEXT NOT NULL DEFAULT '{}',
+  limitation_rules_json TEXT NOT NULL DEFAULT '[]', -- statutory/procedural time-limit parameters (data, never code)
+  source_note TEXT NOT NULL DEFAULT '',  -- publisher / edition / URL provenance
+  knowledge_version_id INTEGER REFERENCES knowledge_versions(id),
+  supersedes_id INTEGER REFERENCES je_rulesets(id),
+  created_by INTEGER REFERENCES users(id),
+  approved_by INTEGER REFERENCES users(id),
+  approved_at TEXT,
+  verified_by INTEGER REFERENCES users(id), -- human checked against the published handbook
+  verified_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_je_ruleset_checksum ON je_rulesets(checksum);
+-- At most one approved ruleset per scheme at any time.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_je_ruleset_active ON je_rulesets(scheme) WHERE status = 'approved';
+
+CREATE TABLE IF NOT EXISTS je_factors (
+  id INTEGER PRIMARY KEY,
+  ruleset_id INTEGER NOT NULL REFERENCES je_rulesets(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,      -- stable slug, e.g. 'communication'
+  seq INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  guidance TEXT NOT NULL DEFAULT '',
+  UNIQUE (ruleset_id, code)
+);
+
+CREATE TABLE IF NOT EXISTS je_factor_levels (
+  id INTEGER PRIMARY KEY,
+  ruleset_id INTEGER NOT NULL REFERENCES je_rulesets(id) ON DELETE CASCADE,
+  factor_code TEXT NOT NULL,
+  level_seq INTEGER NOT NULL,
+  level_label TEXT NOT NULL,
+  points INTEGER NOT NULL,
+  descriptor TEXT NOT NULL, -- short paraphrase; verbatim prose lives in knowledge
+  UNIQUE (ruleset_id, factor_code, level_label)
+);
+
+CREATE TABLE IF NOT EXISTS je_band_boundaries (
+  id INTEGER PRIMARY KEY,
+  ruleset_id INTEGER NOT NULL REFERENCES je_rulesets(id) ON DELETE CASCADE,
+  band_label TEXT NOT NULL, -- '5', '8a'
+  seq INTEGER NOT NULL,
+  min_points INTEGER NOT NULL, -- inclusive
+  max_points INTEGER NOT NULL, -- inclusive
+  UNIQUE (ruleset_id, band_label)
+);
+
+CREATE TABLE IF NOT EXISTS je_profiles (
+  id INTEGER PRIMARY KEY,
+  ruleset_id INTEGER NOT NULL REFERENCES je_rulesets(id) ON DELETE CASCADE,
+  profile_code TEXT NOT NULL,
+  title TEXT NOT NULL,
+  job_family TEXT NOT NULL DEFAULT '',
+  band_label TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'current', -- current | withdrawn
+  notes TEXT NOT NULL DEFAULT '',
+  UNIQUE (ruleset_id, profile_code)
+);
+CREATE INDEX IF NOT EXISTS idx_je_profiles_family ON je_profiles(ruleset_id, job_family);
+
+-- Profiles express a level OR a permitted range per factor.
+CREATE TABLE IF NOT EXISTS je_profile_levels (
+  id INTEGER PRIMARY KEY,
+  profile_id INTEGER NOT NULL REFERENCES je_profiles(id) ON DELETE CASCADE,
+  factor_code TEXT NOT NULL,
+  level_min TEXT NOT NULL,
+  level_max TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  UNIQUE (profile_id, factor_code)
+);
+
+-- Deterministic profile shortlisting (mirrors knowledge_fts).
+CREATE VIRTUAL TABLE IF NOT EXISTS je_profiles_fts USING fts5(
+  title, job_family, notes, content='je_profiles', content_rowid='id'
+);
+CREATE TRIGGER IF NOT EXISTS je_profiles_ai AFTER INSERT ON je_profiles BEGIN
+  INSERT INTO je_profiles_fts(rowid, title, job_family, notes)
+  VALUES (new.id, new.title, new.job_family, new.notes);
+END;
+CREATE TRIGGER IF NOT EXISTS je_profiles_ad AFTER DELETE ON je_profiles BEGIN
+  INSERT INTO je_profiles_fts(je_profiles_fts, rowid, title, job_family, notes)
+  VALUES ('delete', old.id, old.title, old.job_family, old.notes);
+END;
+
+-- ── The review itself ──────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS je_reviews (
+  id INTEGER PRIMARY KEY,
+  member_id INTEGER NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL DEFAULT 'band_review',
+  -- band_review | job_match | new_post | appeal | equal_pay
+  stage TEXT NOT NULL DEFAULT 'draft',
+  -- draft | member_submitted | analysing | advisor_review | report_ready
+  -- | submitted_to_employer | employer_review | outcome_received
+  -- | appeal_lodged | appeal_outcome | closed
+  job_title TEXT NOT NULL DEFAULT '',
+  employer TEXT NOT NULL DEFAULT '',
+  staff_group_code TEXT NOT NULL DEFAULT '',
+  current_band TEXT NOT NULL DEFAULT '',
+  claimed_band TEXT NOT NULL DEFAULT '',
+  in_post_since TEXT,
+  duties_changed_since TEXT,
+  ruleset_id INTEGER REFERENCES je_rulesets(id), -- FROZEN at first compute
+  question_set_version TEXT NOT NULL DEFAULT '',
+  member_editable INTEGER NOT NULL DEFAULT 1,
+  answers_version INTEGER NOT NULL DEFAULT 0,    -- optimistic lock
+  assigned_advisor_id INTEGER REFERENCES users(id),
+  risk_acknowledged_at TEXT,
+  consent_version TEXT NOT NULL DEFAULT '',
+  urgency TEXT NOT NULL DEFAULT 'normal', -- critical | high | normal
+  urgency_reason TEXT,
+  next_important_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  closed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_je_reviews_member ON je_reviews(member_id);
+CREATE INDEX IF NOT EXISTS idx_je_reviews_stage ON je_reviews(stage);
+
+CREATE TABLE IF NOT EXISTS je_answers (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  question_code TEXT NOT NULL,
+  answer TEXT NOT NULL DEFAULT '',
+  answered_by INTEGER REFERENCES users(id),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (review_id, question_code)
+);
+
+-- The review's own conversation thread (standalone: mirrors case_messages).
+CREATE TABLE IF NOT EXISTS je_messages (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  author_user_id INTEGER REFERENCES users(id), -- NULL = system/AI
+  visibility TEXT NOT NULL DEFAULT 'member', -- member | advisor_private | system
+  kind TEXT NOT NULL DEFAULT 'message', -- message | question | report | note
+  content TEXT NOT NULL,
+  approved_by INTEGER REFERENCES users(id),
+  meta TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_msgs_review ON je_messages(review_id);
+
+-- Standalone document store for reviews; shares the upload/extraction
+-- pipeline with case documents via services/documentIntake.js.
+CREATE TABLE IF NOT EXISTS je_documents (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  owner_user_id INTEGER NOT NULL REFERENCES users(id),
+  doc_role TEXT NOT NULL DEFAULT 'other',
+  -- jd | person_spec | org_chart | appraisal | rota | payslip
+  -- | comparator_jd | outcome_letter | other
+  storage_key TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  media_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'stored', -- stored | extracted | extraction_failed
+  extracted_text TEXT,
+  is_current INTEGER NOT NULL DEFAULT 1,
+  document_dated TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_docs_review ON je_documents(review_id);
+
+-- One row per factor per review. Member, AI and advisor each own their own
+-- column group, so concurrent writes can never clobber each other.
+CREATE TABLE IF NOT EXISTS je_factor_assessments (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  factor_code TEXT NOT NULL,
+  claimed_level TEXT,                      -- member-only
+  claimed_note TEXT NOT NULL DEFAULT '',
+  ai_level TEXT,                           -- pipeline-only; proposal, never authority
+  ai_confidence TEXT,                      -- high | medium | low | insufficient
+  ai_alternative_level TEXT,
+  ai_rationale TEXT NOT NULL DEFAULT '',
+  ai_output_id INTEGER,
+  gap_note TEXT NOT NULL DEFAULT '',
+  confirmed_level TEXT,                    -- advisor-only
+  confirmed_decision TEXT,                 -- agree | amend | insufficient | not_applicable
+  confirmed_reason_code TEXT,              -- required when decision = amend
+  confirmed_by INTEGER REFERENCES users(id),
+  confirmed_at TEXT,
+  confirm_note TEXT NOT NULL DEFAULT '',
+  adjustment_flag INTEGER NOT NULL DEFAULT 0,
+  outlier_flag INTEGER NOT NULL DEFAULT 0,
+  blind INTEGER NOT NULL DEFAULT 0,        -- AI proposal hidden until advisor recorded theirs
+  status TEXT NOT NULL DEFAULT 'open',
+  -- open | evidenced | insufficient_evidence | confirmed | disputed
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (review_id, factor_code)
+);
+
+-- Every level proposal must point at evidence that provably exists.
+CREATE TABLE IF NOT EXISTS je_evidence (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  factor_code TEXT NOT NULL DEFAULT '',    -- '' = general
+  source_kind TEXT NOT NULL,               -- document | wizard | message | advisor
+  document_id INTEGER REFERENCES je_documents(id) ON DELETE SET NULL,
+  answer_id INTEGER REFERENCES je_answers(id) ON DELETE SET NULL,
+  quote TEXT NOT NULL DEFAULT '',          -- verbatim, verified against source
+  quote_offset INTEGER,
+  summary TEXT NOT NULL DEFAULT '',
+  strength TEXT NOT NULL DEFAULT 'candidate', -- candidate | confirmed | rejected
+  created_by TEXT NOT NULL DEFAULT 'ai',   -- ai | member | advisor
+  ai_output_id INTEGER,
+  confirmed_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_evidence_review ON je_evidence(review_id, factor_code);
+
+CREATE TABLE IF NOT EXISTS je_profile_matches (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  profile_id INTEGER NOT NULL REFERENCES je_profiles(id),
+  rank INTEGER NOT NULL DEFAULT 0,
+  fit TEXT NOT NULL DEFAULT 'partial',     -- match | partial | no_match (DETERMINISTIC)
+  factors_outside_json TEXT NOT NULL DEFAULT '[]',
+  ai_rationale TEXT NOT NULL DEFAULT '',
+  ai_output_id INTEGER,
+  selected_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_matches_review ON je_profile_matches(review_id);
+
+-- Comparator / fair-pay evidence. Stores a member-chosen reference label,
+-- never a colleague's name, unless consent is explicitly recorded.
+CREATE TABLE IF NOT EXISTS je_comparators (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  comparator_ref TEXT NOT NULL,            -- 'Colleague A', 'Band 6 post on ward X'
+  kind TEXT NOT NULL DEFAULT 'colleague',
+  -- colleague | same_employer_other_post | other_employer | national_profile | advert
+  same_employer INTEGER NOT NULL DEFAULT 1,
+  band_label TEXT NOT NULL DEFAULT '',
+  basis TEXT NOT NULL DEFAULT 'like_work',
+  -- like_work | work_rated_as_equivalent | equal_value
+  is_actual_person INTEGER NOT NULL DEFAULT 1,
+  named_consent INTEGER NOT NULL DEFAULT 0, -- they know and agreed to be named
+  similarity_note TEXT NOT NULL DEFAULT '',
+  difference_note TEXT NOT NULL DEFAULT '',
+  evidence_document_id INTEGER REFERENCES je_documents(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'claimed',  -- claimed | evidenced | verified | rejected
+  verified_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_comparators_review ON je_comparators(review_id);
+
+-- Deterministic check results / escalation flags for a review (standalone
+-- sibling of `escalations`).
+CREATE TABLE IF NOT EXISTS je_flags (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  rule_id TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'high', -- critical | high | notice
+  reason TEXT NOT NULL,
+  factor_code TEXT NOT NULL DEFAULT '',
+  detected_by TEXT NOT NULL DEFAULT 'rules', -- rules | ai | advisor
+  acknowledged_by INTEGER REFERENCES users(id),
+  acknowledged_at TEXT,
+  resolved_at TEXT,
+  resolved_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_flags_review ON je_flags(review_id);
+
+-- ── Outcomes, decisions, reports, runs ─────────────────────────────────────
+
+-- Append-only. A recompute NEVER mutates an existing outcome.
+CREATE TABLE IF NOT EXISTS je_outcomes (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  ruleset_id INTEGER NOT NULL REFERENCES je_rulesets(id),
+  ruleset_checksum TEXT NOT NULL,
+  basis TEXT NOT NULL,              -- claimed | ai_proposed | confirmed
+  total_points INTEGER NOT NULL,
+  band_label TEXT NOT NULL DEFAULT '', -- '' when not asserted (incomplete/range)
+  points_low INTEGER NOT NULL,
+  points_high INTEGER NOT NULL,
+  band_low TEXT NOT NULL DEFAULT '',
+  band_high TEXT NOT NULL DEFAULT '',
+  confidence TEXT NOT NULL DEFAULT 'low', -- high | medium | low
+  factors_missing INTEGER NOT NULL DEFAULT 0,
+  computation_json TEXT NOT NULL,   -- frozen inputs + per-factor arithmetic
+  checks_json TEXT NOT NULL DEFAULT '[]',
+  supersedes_id INTEGER REFERENCES je_outcomes(id),
+  computed_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_outcomes_review ON je_outcomes(review_id);
+
+-- Real-world formal events in the employer's process. The ONLY entry point
+-- for an actual band: a human recording an employer outcome.
+CREATE TABLE IF NOT EXISTS je_decisions (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  -- request_submitted | panel_matched | panel_evaluated | outcome_issued
+  -- | appeal_lodged | appeal_heard | appeal_outcome | back_pay_agreed | withdrawn
+  decision_date TEXT,
+  decided_by TEXT NOT NULL DEFAULT 'employer',
+  -- employer | matching_panel | appeal_panel | member | advisor
+  band_awarded TEXT NOT NULL DEFAULT '',
+  effective_from TEXT,
+  back_pay_from TEXT,
+  back_pay_to TEXT,
+  detail TEXT NOT NULL DEFAULT '',
+  document_id INTEGER REFERENCES je_documents(id) ON DELETE SET NULL,
+  source TEXT NOT NULL DEFAULT 'member_reported', -- member_reported | document | advisor
+  date_confirmed INTEGER NOT NULL DEFAULT 0,      -- deadline safety: verify flag
+  recorded_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_decisions_review ON je_decisions(review_id);
+
+CREATE TABLE IF NOT EXISTS je_reports (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  outcome_id INTEGER REFERENCES je_outcomes(id),
+  audience TEXT NOT NULL DEFAULT 'member', -- member | advisor | employer_submission
+  report_version INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'draft',    -- draft | approved | issued | withdrawn
+  includes_band_range INTEGER NOT NULL DEFAULT 1,
+  include_range_reason TEXT NOT NULL DEFAULT '',
+  body_json TEXT NOT NULL,
+  ai_output_id INTEGER,
+  generated_by TEXT NOT NULL DEFAULT 'template', -- template | ai
+  approved_by INTEGER REFERENCES users(id),
+  approved_at TEXT,
+  issued_at TEXT,
+  je_message_id INTEGER REFERENCES je_messages(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (review_id, audience, report_version)
+);
+
+CREATE TABLE IF NOT EXISTS je_runs (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  trigger_kind TEXT NOT NULL DEFAULT 'advisor', -- member_submit | advisor | recompute
+  status TEXT NOT NULL DEFAULT 'running',       -- running | complete | failed | aborted
+  requested_by INTEGER REFERENCES users(id),
+  started_at TEXT NOT NULL DEFAULT (datetime('now')),
+  finished_at TEXT,
+  error_code TEXT
+);
+-- One in-flight run per review, enforced by the database.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_je_runs_active ON je_runs(review_id) WHERE status = 'running';
+
+CREATE TABLE IF NOT EXISTS je_run_stages (
+  id INTEGER PRIMARY KEY,
+  run_id INTEGER NOT NULL REFERENCES je_runs(id) ON DELETE CASCADE,
+  stage TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | ok | invalid | failed | skipped
+  ai_output_id INTEGER,
+  prompt_version TEXT NOT NULL DEFAULT '',
+  dropped_count INTEGER NOT NULL DEFAULT 0, -- validator rejections, for oversight
+  started_at TEXT,
+  finished_at TEXT,
+  error_code TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_je_run_stages_run ON je_run_stages(run_id);
+
+-- Sign-off record: the advisor's completed fairness checklist per review.
+CREATE TABLE IF NOT EXISTS je_signoffs (
+  id INTEGER PRIMARY KEY,
+  review_id INTEGER NOT NULL REFERENCES je_reviews(id) ON DELETE CASCADE,
+  reviewer_user_id INTEGER NOT NULL REFERENCES users(id),
+  review_role TEXT NOT NULL DEFAULT 'primary', -- primary | second_opinion
+  checklist_version TEXT NOT NULL,
+  checklist_json TEXT NOT NULL,       -- {itemCode: true} — codes only, no narrative
+  recommendation TEXT NOT NULL,       -- supports | supports_in_part | not_supported | more_information
+  disagreement_count INTEGER NOT NULL DEFAULT 0,
+  band_low TEXT NOT NULL DEFAULT '',
+  band_high TEXT NOT NULL DEFAULT '',
+  second_opinion_required INTEGER NOT NULL DEFAULT 0,
+  second_opinion_waived_reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_je_signoffs_review ON je_signoffs(review_id);

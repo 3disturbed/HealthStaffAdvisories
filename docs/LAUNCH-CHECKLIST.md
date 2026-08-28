@@ -107,7 +107,10 @@ Run at least 20 synthetic or appropriately anonymised scenarios (drawn from the 
 - [ ] Reasonable adjustment.
 - [ ] Flexible working.
 - [ ] Pay.
-- [ ] Banding.
+- [ ] Banding — run one full band review through the dedicated section: wizard across two sessions, advisor factor confirmation, sign-off, member report, employer submission (range excluded), printed in dark mode.
+- [ ] JE reference data verified: the seeded factor plan, level points, band boundaries and time-limit parameters checked against the current published NHS Job Evaluation Handbook and marked verified in Admin → Job evaluation (or replaced by a verified import).
+- [ ] JE reference licensing position confirmed in writing (handbook-derived data and any imported national profiles).
+- [ ] JE terms/transparency/privacy sections reviewed by a solicitor (indicative dates liability; regulated-activity check).
 - [ ] Dismissal.
 - [ ] Possible tribunal deadline.
 - [ ] Speaking up.

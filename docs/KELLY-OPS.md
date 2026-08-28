@@ -201,3 +201,15 @@ Once per week review:
 - questions members repeatedly misunderstood.
 
 Those observations become the next sprint's product evidence (see [AGILE.md](AGILE.md), sprint review questions).
+
+## Band reviews (job evaluation)
+
+The dedicated section (Advisor → Band reviews) is your oversight surface. The discipline:
+
+1. **Open the workbench** from the JE queue. The band meter never shows one number while areas are unresolved — a hatched range is the honest state.
+2. **Work the 16 areas.** Confirm a proposal only when its evidence quote genuinely supports the descriptor (the system blocks confirming unevidenced proposals). Changing a proposed level always records your reason — that is the fairness trail, not bureaucracy. "Not enough information" is a first-class answer: it widens the range and becomes a member question. Batch questions into ONE message.
+3. **Blind checks:** on sampled reviews the AI proposal is hidden until you record your own level. Do not fight this — it is how we know agreement means accuracy, not deference.
+4. **Sign off** through the ten-item checklist, honestly. The second-opinion prompts (wide range, downbanding exposure, equal pay, appeals, heavy disagreement) exist because those are the cases that go wrong; waive only with a reason you would defend.
+5. **Reports:** the member report ends in at most five actionables — that is the point of it. The employer submission excludes the indicative range unless you deliberately include it with a reason; a self-assessed band in front of a panel usually weakens the member.
+6. **Record what the panel decides** in the Formal record — that is the only place a real band enters the system, and it drives the appeal-window nudges.
+7. **Never** tell a member their job "is" a band, promise an outcome, or state a time limit has passed. Indicative, evidence-linked, panel-decides — every time.

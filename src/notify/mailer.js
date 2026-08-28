@@ -19,6 +19,13 @@ export function notifyUser(userId, type, title, body = '', caseId = null) {
   ).run(userId, type, title, body, caseId);
 }
 
+// Notification that deep-links to a band review instead of a case.
+export function notifyUserJe(userId, type, title, jeReviewId, body = '') {
+  db.prepare(
+    'INSERT INTO notifications (user_id, type, title, body, je_review_id) VALUES (?, ?, ?, ?, ?)'
+  ).run(userId, type, title, body, jeReviewId);
+}
+
 // Notification email that respects the user's email preference. Account
 // emails (verification, reset) must NOT go through this — always delivered.
 export function sendNotificationEmail(userId, subject, body) {

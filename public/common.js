@@ -1,5 +1,6 @@
 // Shared helpers for all pages. No framework — plain browser JS.
 import { ICONS, pop, openSheet } from '/ui.js';
+import { escAttr, safeUrl } from '/escape.js';
 
 // PWA: register the (network-first) service worker. The install prompt is
 // captured earlier, in /pwa-early.js; theme in /theme-boot.js.
@@ -45,10 +46,16 @@ export function esc(value) {
   return div.innerHTML;
 }
 
+// escAttr and safeUrl live in /escape.js (DOM-free) so node --test can import
+// them directly; re-exported here so pages keep importing from one place.
+// Use escAttr inside quoted attributes (esc leaves quotes unescaped), esc for
+// text content.
+export { escAttr, safeUrl };
+
 export function el(id) { return document.getElementById(id); }
 
 export function showNotice(container, kind, text) {
-  container.innerHTML = `<div class="notice ${esc(kind)}">${esc(text)}</div>`;
+  container.innerHTML = `<div class="notice ${escAttr(kind)}">${esc(text)}</div>`;
 }
 
 export function fmtDate(value) {
@@ -82,9 +89,10 @@ export async function openAlerts(user) {
   const body = openSheet('Alerts', '<div class="skel skel-line" data-w="90"></div><div class="skel skel-line" data-w="75"></div>');
   const { notifications } = await fetchNotifications(true);
   const caseBase = can(user, 'cases.review') ? '/advisor.html#/case/' : '/portal.html#/case/';
+  const jeBase = can(user, 'je.review') ? '/advisor.html#/banding/' : '/portal.html#/banding/';
   body.innerHTML = notifications.length
     ? notifications.map((n) => `
-        <a class="notif-item ${n.read_at ? '' : 'unread'}" href="${n.case_id ? `${caseBase}${n.case_id}` : '#'}">
+        <a class="notif-item ${n.read_at ? '' : 'unread'}" href="${n.je_review_id ? `${jeBase}${n.je_review_id}` : n.case_id ? `${caseBase}${n.case_id}` : '#'}">
           ${esc(n.title)}${n.body ? `<span class="muted small"> — ${esc(n.body)}</span>` : ''}
           <div class="muted small">${esc(fmtDate(n.created_at))}</div>
         </a>`).join('')
@@ -101,7 +109,7 @@ function tabsForRole(user) {
   if (can(user, 'cases.review')) {
     return [
       { id: 'advisor-today', icon: 'today', label: 'Today', href: '/advisor.html#/' },
-      { id: 'advisor-queue', icon: 'queue', label: 'Queue', href: '/advisor.html#/queue' },
+      { id: 'advisor-queue', icon: 'queue', label: 'Queue', href: '/advisor.html#/queue', also: ['/advisor.html#/banding'] },
       { id: 'assistant', icon: 'chat', label: 'Assistant', action: 'assistant' },
       { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
       { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
@@ -124,8 +132,8 @@ function tabsForRole(user) {
   if (can(user, 'cases.own')) {
     return [
       { id: 'portal-home', icon: 'home', label: 'Home', href: '/portal.html#/' },
-      { id: 'portal-cases', icon: 'cases', label: 'Cases', href: '/portal.html#/cases' },
-      { id: 'portal-new', icon: 'plus', label: 'Start', href: '/portal.html#/new', accent: true },
+      { id: 'portal-cases', icon: 'cases', label: 'Cases', href: '/portal.html#/cases', also: ['/portal.html#/banding'] },
+      { id: 'portal-new', icon: 'plus', label: 'Start', href: '/portal.html#/new', accent: true, also: ['/portal.html#/banding/new'] },
       { id: 'alerts', icon: 'bell', label: 'Alerts', action: 'alerts', badge: true },
       { id: 'account', icon: 'account', label: 'Account', href: '/account.html' },
     ];
@@ -136,6 +144,21 @@ function tabsForRole(user) {
 function currentTabId(tabs) {
   const here = window.location.pathname.replace(/\/$/, '') || '/index.html';
   const hash = window.location.hash || '#/';
+  // `also` prefixes (e.g. the banding section living under the Cases tab):
+  // longest prefix wins so '#/banding/new' lights Start, not Cases.
+  let alsoBest = null;
+  for (const t of tabs) {
+    for (const alt of t.also || []) {
+      const [altPath, altHash] = alt.split('#');
+      if (altPath !== here || !altHash) continue;
+      const want = `#${altHash}`;
+      if ((hash === want || hash.startsWith(`${want}/`) || hash.startsWith(want)) &&
+          (!alsoBest || want.length > alsoBest.len)) {
+        alsoBest = { id: t.id, len: want.length };
+      }
+    }
+  }
+  if (alsoBest) return alsoBest.id;
   let best = null;
   for (const t of tabs) {
     if (!t.href) continue;
