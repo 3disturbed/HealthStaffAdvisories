@@ -39,7 +39,11 @@ export function storeUpload(file, kind) {
 
 export async function extractText(kind, buffer) {
   if (kind === 'txt') return buffer.toString('utf8').slice(0, 200000);
-  if (kind === 'pdf') return (await pdfParse(buffer)).text.slice(0, 200000);
+  // Hand pdf.js a plain Uint8Array copy, never a Node Buffer: the pdf.js
+  // bundled in pdf-parse 1.1.1 misreads Buffers (a small PDF held in Node's
+  // shared buffer pool at a non-zero offset fails with "Command token too
+  // long" / "bad XRef entry"; the same bytes as a Uint8Array parse fine).
+  if (kind === 'pdf') return (await pdfParse(new Uint8Array(buffer))).text.slice(0, 200000);
   if (kind === 'docx') return (await mammoth.extractRawText({ buffer })).value.slice(0, 200000);
   return '';
 }
